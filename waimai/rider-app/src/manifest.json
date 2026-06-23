@@ -1,0 +1,15 @@
+{
+  "name": "骑手端",
+  "appid": "__UNI__WAIMAI_RIDER",
+  "description": "乡镇本地外卖骑手端",
+  "versionName": "0.1.0",
+  "versionCode": "1",
+  "transformPx": false,
+  "app-plus": {},
+  "h5": {
+    "devServer": {
+      "host": "127.0.0.1",
+      "port": 5176
+    }
+  }
+}

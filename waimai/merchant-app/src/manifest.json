@@ -1,0 +1,21 @@
+{
+  "name": "商家端",
+  "appid": "__UNI__WAIMAI_MERCHANT",
+  "description": "乡镇本地外卖商家端",
+  "versionName": "0.1.0",
+  "versionCode": "1",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    },
+    "usingComponents": true
+  },
+  "h5": {
+    "devServer": {
+      "host": "127.0.0.1",
+      "port": 5175
+    }
+  }
+}

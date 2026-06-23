@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: waimai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: waimai
+      POSTGRES_USER: waimai
+      POSTGRES_PASSWORD: waimai123456
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waimai -d waimai"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
