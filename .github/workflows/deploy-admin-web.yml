@@ -1,4 +1,4 @@
-name: Deploy admin web to GitHub Pages
+name: Deploy web apps to GitHub Pages
 
 on:
   push:
@@ -31,15 +31,43 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: waimai/admin-web/package-lock.json
+          cache-dependency-path: |
+            waimai/admin-web/package-lock.json
+            waimai/user-app/package-lock.json
+            waimai/rider-app/package-lock.json
 
-      - name: Install dependencies
+      - name: Install admin dependencies
         working-directory: waimai/admin-web
         run: npm ci
 
-      - name: Build
+      - name: Build admin web
         working-directory: waimai/admin-web
         run: npm run build
+
+      - name: Install user app dependencies
+        working-directory: waimai/user-app
+        run: npm ci
+
+      - name: Build user app H5
+        working-directory: waimai/user-app
+        run: npm run build:h5
+
+      - name: Install rider app dependencies
+        working-directory: waimai/rider-app
+        run: npm ci
+
+      - name: Build rider app H5
+        working-directory: waimai/rider-app
+        run: npm run build:h5
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p pages-dist/user pages-dist/rider
+          cp -R waimai/admin-web/dist/. pages-dist/
+          cp -R waimai/user-app/dist/build/h5/. pages-dist/user/
+          cp -R waimai/rider-app/dist/build/h5/. pages-dist/rider/
+          touch pages-dist/.nojekyll
+          echo "www.xiangzhen.site" > pages-dist/CNAME
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -47,9 +75,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: waimai/admin-web/dist
+          path: pages-dist
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

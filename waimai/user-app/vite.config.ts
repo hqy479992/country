@@ -4,5 +4,6 @@ import uniPlugin from "@dcloudio/vite-plugin-uni";
 const uni = (uniPlugin as unknown as { default?: typeof uniPlugin }).default ?? uniPlugin;
 
 export default defineConfig({
+  base: "/user/",
   plugins: [uni()]
 });
