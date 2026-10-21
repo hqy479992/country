@@ -66,6 +66,14 @@ npm run dev
 http://localhost:5173
 ```
 
+## 线上入口
+
+- 用户端：<https://www.xiangzhen.site/>
+- 运营后台：<https://www.xiangzhen.site/admin/>
+- 骑手端：<https://www.xiangzhen.site/rider/>
+
+原用户端地址 `/user/` 会跳转到首页，并保留查询参数和页面路由。
+
 ## 子项目说明
 
 更详细的接口和联调顺序见：

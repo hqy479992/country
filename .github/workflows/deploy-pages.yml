@@ -62,10 +62,11 @@ jobs:
 
       - name: Prepare Pages artifact
         run: |
-          mkdir -p pages-dist/user pages-dist/rider
-          cp -R waimai/admin-web/dist/. pages-dist/
-          cp -R waimai/user-app/dist/build/h5/. pages-dist/user/
+          mkdir -p pages-dist/admin pages-dist/user pages-dist/rider
+          cp -R waimai/user-app/dist/build/h5/. pages-dist/
+          cp -R waimai/admin-web/dist/. pages-dist/admin/
           cp -R waimai/rider-app/dist/build/h5/. pages-dist/rider/
+          cp .github/pages/user-redirect.html pages-dist/user/index.html
           touch pages-dist/.nojekyll
           echo "www.xiangzhen.site" > pages-dist/CNAME
 
