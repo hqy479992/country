@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="网站正在建设与完善，敬请期待。" />
+    <meta name="theme-color" content="#f5f7f2" />
+    <title>网站建设中</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        color: #244735;
+        background: #f5f7f2;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 280px;
+        min-height: 100vh;
+        min-height: 100svh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 32px clamp(24px, 6vw, 72px);
+        color: #526559;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+
+      main {
+        flex: 1;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        padding: 48px 24px 80px;
+        text-align: center;
+      }
+
+      .illustration {
+        width: 112px;
+        height: 112px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 32px;
+        border: 1px solid #dbe6d8;
+        border-radius: 32px;
+        background: #eaf0e5;
+        color: #467652;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(32px, 5vw, 44px);
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        line-height: 1.4;
+      }
+
+      p {
+        margin: 20px 0 0;
+        color: #66746a;
+        font-size: 16px;
+        line-height: 1.9;
+      }
+
+      .accent {
+        width: 32px;
+        height: 3px;
+        margin-top: 36px;
+        border-radius: 2px;
+        background: #a9bea0;
+      }
+
+      footer {
+        padding: 24px 20px max(24px, env(safe-area-inset-bottom));
+        text-align: center;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+
+      footer a {
+        color: #66746a;
+        text-decoration: none;
+        text-underline-offset: 4px;
+      }
+
+      footer a:hover {
+        color: #244735;
+        text-decoration: underline;
+      }
+
+      footer a:focus-visible {
+        outline: 2px solid #467652;
+        outline-offset: 6px;
+        border-radius: 2px;
+      }
+
+      @media (max-width: 480px) {
+        header {
+          padding-top: 24px;
+        }
+
+        main {
+          padding-top: 32px;
+          padding-bottom: 64px;
+        }
+
+        p {
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>xiangzhen.site</header>
+    <main>
+      <div class="illustration" aria-hidden="true">
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+          <path
+            d="M10 28 30 11l20 17M16 25v24h28V25M25 49V35h10v14"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M42 10v8M38 14h8"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </div>
+      <h1>网站建设中</h1>
+      <p>网站正在建设与完善，敬请期待。</p>
+      <div class="accent" aria-hidden="true"></div>
+    </main>
+    <footer>
+      <a
+        href="https://beian.miit.gov.cn/"
+        target="_blank"
+        rel="noopener noreferrer"
+        >蜀ICP备2026056789号-1</a
+      >
+    </footer>
+  </body>
+</html>
