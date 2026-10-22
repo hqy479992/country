@@ -70,7 +70,7 @@ run("pg_dump", ["--format=custom", "--file", join(backup, "database.dump")], {
 });
 await chmod(join(backup, "database.dump"), 0o600);
 console.log(`数据库、环境配置与原编译文件已备份：${backup}`);
-run("npm", ["ci"]);
+run("npm", ["ci", "--include=dev"]);
 run("npm", ["run", "prisma:generate"]);
 run("npx", ["prisma", "migrate", "deploy"]);
 run("npm", ["run", "build"]);
