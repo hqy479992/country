@@ -4,6 +4,7 @@ import type {
   CartQuote,
   CartItem,
   ErrandOrder,
+  ErrandInput,
   Order,
   ProductCategory,
   Shop,
@@ -104,26 +105,17 @@ export const api = {
   cancelOrder: (orderId: string) =>
     request<Order>(`/api/orders/${orderId}/cancel`, { method: "POST" }),
   getOrder: (orderId: string) => request<Order>(`/api/orders/${orderId}`),
-  createErrandOrder: (data: {
-    serviceType: "DELIVERY" | "BUY" | "HELP";
-    deliveryMode: "SEND" | "PICK" | "EXPRESS";
-    vehicleType: "BIKE" | "CAR";
-    pickupAddress: {
-      name: string;
-      phone: string;
-      region: string;
-      detail: string;
-    };
-    deliveryAddress: {
-      name: string;
-      phone: string;
-      region: string;
-      detail: string;
-    };
-    itemNote?: string;
-    remark?: string;
-  }) =>
+  createErrandOrder: (data: ErrandInput) =>
     request<ErrandOrder>("/api/user/errand-orders", { method: "POST", data }),
+  payErrandMock: (id: string, quotedAmount: number) =>
+    request<ErrandOrder>(`/api/user/errand-orders/${id}/pay/mock`, {
+      method: "POST",
+      data: { quotedAmount },
+    }),
+  cancelErrandOrder: (id: string) =>
+    request<ErrandOrder>(`/api/user/errand-orders/${id}/cancel`, {
+      method: "POST",
+    }),
   getErrandOrders: () => request<ErrandOrder[]>("/api/user/errand-orders"),
   getErrandOrder: (orderId: string) =>
     request<ErrandOrder>(`/api/user/errand-orders/${orderId}`),

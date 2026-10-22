@@ -86,10 +86,7 @@ export type Shop = {
 };
 
 export type ProductCategory =
-  | "FOOD"
-  | "DRINK"
-  | "FRUIT_VEGETABLE"
-  | "CONVENIENCE";
+  "FOOD" | "DRINK" | "FRUIT_VEGETABLE" | "CONVENIENCE";
 
 export type Product = {
   id: string;
@@ -202,6 +199,17 @@ export const api = {
       body: compact(body),
     }),
   getOrders: () => request<Order[]>("/api/admin/orders"),
+  getErrands: () => request<ErrandOrder[]>("/api/admin/errand-orders"),
+  quoteErrand: (id: string, serviceFee: number) =>
+    request<ErrandOrder>(`/api/admin/errand-orders/${id}/quote`, {
+      method: "POST",
+      body: { serviceFee },
+    }),
+  rejectErrand: (id: string, reason: string) =>
+    request<ErrandOrder>(`/api/admin/errand-orders/${id}/reject`, {
+      method: "POST",
+      body: { reason },
+    }),
 };
 
 export function yuan(cents: number) {
@@ -220,3 +228,33 @@ function compact<T extends Record<string, unknown>>(body: T) {
     ),
   );
 }
+
+export type ErrandOrder = {
+  id: string;
+  orderNo: string;
+  serviceType: string;
+  deliveryMode: string;
+  status: string;
+  paymentStatus: string;
+  paymentMethod?: string;
+  totalAmount: number;
+  goodsBudget?: number | null;
+  itemNote: string;
+  remark?: string;
+  createdAt: string;
+  quotedAt?: string | null;
+  pickupAddressSnapshot: {
+    name: string;
+    phone: string;
+    region: string;
+    detail: string;
+  };
+  deliveryAddressSnapshot: {
+    name: string;
+    phone: string;
+    region: string;
+    detail: string;
+  };
+  rider?: { name: string; phone?: string | null } | null;
+  user: { account?: string | null; nickname?: string | null; id: string };
+};

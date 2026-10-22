@@ -29,6 +29,18 @@
       "style": {
         "navigationBarTitleText": "工作人员登录"
       }
+    },
+    {
+      "path": "pages/errands/index",
+      "style": {
+        "navigationBarTitleText": "跑腿接单"
+      }
+    },
+    {
+      "path": "pages/errands/detail",
+      "style": {
+        "navigationBarTitleText": "跑腿配送详情"
+      }
     }
   ],
   "globalStyle": {

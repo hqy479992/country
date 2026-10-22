@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "../../components/AppButton.vue";
 import { computed, ref } from "vue";
-import { onShow, onHide, onUnload } from "@dcloudio/uni-app";
+import { onLoad, onShow, onHide, onUnload } from "@dcloudio/uni-app";
 import { api } from "../../api";
 import type { Order } from "../../api/types";
 import { getToken, requireLogin } from "../../utils/session";
@@ -11,6 +11,17 @@ import PageHead from "../../components/PageHead.vue";
 import BottomNav from "../../components/BottomNav.vue";
 import DataState from "../../components/DataState.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import ErrandOrders from "../../components/ErrandOrders.vue";
+const kind = ref("food");
+const pageVisible = ref(false);
+onLoad((options) => {
+  if (options?.type === "errand") kind.value = "errand";
+});
+function switchKind(value: string) {
+  kind.value = value;
+  active.value = "all";
+  if (value === "food") void load();
+}
 const orders = ref<Order[]>([]);
 const loading = ref(false);
 const error = ref("");
@@ -20,7 +31,7 @@ let timer: ReturnType<typeof setInterval> | undefined;
 let visible = false;
 const filters = [
   { key: "all", label: "全部" },
-  { key: "pay", label: "待支付" },
+  { key: "pay", label: "待确认/支付" },
   { key: "active", label: "进行中" },
   { key: "done", label: "已完成" },
   { key: "cancelled", label: "已取消" },
@@ -49,7 +60,7 @@ async function load(silent = false) {
     orders.value = [];
     return;
   }
-  if (loading.value) return;
+  if (loading.value || kind.value !== "food") return;
   loading.value = true;
   if (!silent) error.value = "";
   try {
@@ -73,11 +84,13 @@ function pay(order: Order) {
 }
 function stop() {
   visible = false;
+  pageVisible.value = false;
   if (timer) clearInterval(timer);
   timer = undefined;
 }
 onShow(() => {
   visible = true;
+  pageVisible.value = true;
   void load();
   if (timer) clearInterval(timer);
   timer = setInterval(() => {
@@ -96,15 +109,37 @@ onUnload(stop);
 <template>
   <view class="page with-nav"
     ><PageHead title="我的订单" :back="false"
-      ><AppButton class="text-btn small" :disabled="loading" @tap="load()"
+      ><AppButton
+        v-if="kind === 'food'"
+        class="text-btn small"
+        :disabled="loading"
+        @tap="load()"
         >刷新</AppButton
       ></PageHead
+    ><view class="chips"
+      ><AppButton
+        class="chip"
+        :class="{ active: kind === 'food' }"
+        @tap="switchKind('food')"
+        >外卖订单</AppButton
+      ><AppButton
+        class="chip"
+        :class="{ active: kind === 'errand' }"
+        @tap="switchKind('errand')"
+        >跑腿订单</AppButton
+      ></view
     ><DataState
       v-if="!loggedIn"
       title="登录后查看订单"
       description="在这里查看备餐、配送和历史订单"
       action="去登录"
-      @action="requireLogin('/pages/orders/index')" /><template v-else
+      @action="
+        requireLogin(
+          kind === 'errand'
+            ? '/pages/orders/index?type=errand'
+            : '/pages/orders/index',
+        )
+      " /><template v-else
       ><view class="chips order-filters"
         ><AppButton
           v-for="filter in filters"
@@ -114,68 +149,76 @@ onUnload(stop);
           @tap="active = filter.key"
           >{{ filter.label }}</AppButton
         ></view
-      ><DataState
-        v-if="loading && !orders.length"
-        kind="loading"
-        title="正在加载订单"
-      /><DataState
-        v-else-if="error && !orders.length"
-        kind="error"
-        title="订单加载失败"
-        :description="error"
-        action="重新加载"
-        @action="load()"
+      ><ErrandOrders
+        v-if="kind === 'errand'"
+        :active="pageVisible && kind === 'errand'"
+        :filter="active"
       /><template v-else
-        ><view v-if="error" class="notice warning refresh-notice"
-          >刷新失败，当前显示上次结果。{{ error }}</view
         ><DataState
-          v-if="!filtered.length"
-          title="这里还没有订单"
-          :description="
-            active === 'all' ? '去附近商家挑点喜欢的吧' : '换个订单分类看看'
-          "
-        /><view v-else class="stack"
-          ><view
-            v-for="order in filtered"
-            :key="order.id"
-            class="card order-card"
-            ><AppButton class="order-main" @tap="open(order)"
-              ><view class="row order-header"
-                ><view class="order-shop"
-                  ><AppIcon name="store" :size="18" /><text>{{
-                    order.shop?.name || "商家"
-                  }}</text
-                  ><AppIcon name="arrow" :size="14" color="#829177" /></view
-                ><text
-                  class="order-status"
-                  :class="statusClass(order.status)"
-                  >{{ statusText(order.status) }}</text
+          v-if="loading && !orders.length"
+          kind="loading"
+          title="正在加载订单"
+        /><DataState
+          v-else-if="error && !orders.length"
+          kind="error"
+          title="订单加载失败"
+          :description="error"
+          action="重新加载"
+          @action="load()"
+        /><template v-else
+          ><view v-if="error" class="notice warning refresh-notice"
+            >刷新失败，当前显示上次结果。{{ error }}</view
+          ><DataState
+            v-if="!filtered.length"
+            title="这里还没有订单"
+            :description="
+              active === 'all' ? '去附近商家挑点喜欢的吧' : '换个订单分类看看'
+            "
+          /><view v-else class="stack"
+            ><view
+              v-for="order in filtered"
+              :key="order.id"
+              class="card order-card"
+              ><AppButton class="order-main" @tap="open(order)"
+                ><view class="row order-header"
+                  ><view class="order-shop"
+                    ><AppIcon name="store" :size="18" /><text>{{
+                      order.shop?.name || "商家"
+                    }}</text
+                    ><AppIcon name="arrow" :size="14" color="#829177" /></view
+                  ><text
+                    class="order-status"
+                    :class="statusClass(order.status)"
+                    >{{ statusText(order.status) }}</text
+                  ></view
+                ><view class="order-products"
+                  ><text>{{
+                    order.items.map((item) => item.productName).join("、")
+                  }}</text></view
+                ><view class="row small"
+                  ><text class="muted">{{ dateText(order.createdAt) }}</text
+                  ><text class="order-price">{{
+                    yuan(order.totalAmount)
+                  }}</text></view
+                ></AppButton
+              ><view class="order-actions"
+                ><text class="small muted"
+                  >共
+                  {{
+                    order.items.reduce((sum, item) => sum + item.quantity, 0)
+                  }}
+                  件商品</text
+                ><AppButton
+                  v-if="order.status === 'PENDING_PAYMENT'"
+                  class="pay-button"
+                  @tap="pay(order)"
+                  >继续支付</AppButton
+                ><AppButton v-else class="outline-btn" @tap="open(order)"
+                  >查看详情</AppButton
                 ></view
-              ><view class="order-products"
-                ><text>{{
-                  order.items.map((item) => item.productName).join("、")
-                }}</text></view
-              ><view class="row small"
-                ><text class="muted">{{ dateText(order.createdAt) }}</text
-                ><text class="order-price">{{
-                  yuan(order.totalAmount)
-                }}</text></view
-              ></AppButton
-            ><view class="order-actions"
-              ><text class="small muted"
-                >共
-                {{ order.items.reduce((sum, item) => sum + item.quantity, 0) }}
-                件商品</text
-              ><AppButton
-                v-if="order.status === 'PENDING_PAYMENT'"
-                class="pay-button"
-                @tap="pay(order)"
-                >继续支付</AppButton
-              ><AppButton v-else class="outline-btn" @tap="open(order)"
-                >查看详情</AppButton
               ></view
             ></view
-          ></view
+          ></template
         ></template
       ></template
     ><BottomNav active="orders"

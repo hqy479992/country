@@ -1,8 +1,5 @@
 export type ProductCategory =
-  | "FOOD"
-  | "DRINK"
-  | "FRUIT_VEGETABLE"
-  | "CONVENIENCE";
+  "FOOD" | "DRINK" | "FRUIT_VEGETABLE" | "CONVENIENCE";
 export type ShopSortMode =
   | "COMPREHENSIVE"
   | "DISTANCE"
@@ -132,37 +129,58 @@ export type CartQuote = {
 export type Capabilities = {
   version: number;
   accounts: boolean;
+  errands?: boolean;
+  errandPricing?: "manual";
   orderExpiryMinutes: number;
   paymentMode: "mock" | "unavailable";
 };
 
+export type ErrandAddress = {
+  name: string;
+  phone: string;
+  region: string;
+  detail: string;
+};
+export type ErrandInput = {
+  serviceType: "DELIVERY" | "BUY";
+  deliveryMode: "SEND" | "PICK";
+  pickupAddress: ErrandAddress;
+  deliveryAddress: ErrandAddress;
+  itemNote: string;
+  remark: string;
+  goodsBudget?: number;
+  requestId: string;
+};
 export type ErrandOrder = {
   id: string;
   orderNo: string;
   userId: string;
   serviceType: "DELIVERY" | "BUY" | "HELP";
   deliveryMode: "SEND" | "PICK" | "EXPRESS";
-  vehicleType: "BIKE" | "CAR";
-  pickupAddressSnapshot: {
-    name: string;
-    phone: string;
-    region: string;
-    detail: string;
-  };
-  deliveryAddressSnapshot: {
-    name: string;
-    phone: string;
-    region: string;
-    detail: string;
-  };
-  itemNote?: string | null;
-  remark?: string | null;
-  distanceText?: string | null;
+  pickupAddressSnapshot: ErrandAddress;
+  deliveryAddressSnapshot: ErrandAddress;
+  itemNote: string;
+  remark?: string;
+  goodsBudget?: number | null;
   baseFee: number;
   totalAmount: number;
   status: string;
   paymentStatus: string;
-  paidAt?: string | null;
-  completedAt?: string | null;
+  paymentMethod?: string | null;
+  riderId?: string | null;
   createdAt: string;
+  paidAt?: string | null;
+  quotedAt?: string | null;
+  expiresAt?: string | null;
+  acceptedAt?: string | null;
+  pickedUpAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
+  rider?: { id: string; name: string; phone?: string | null } | null;
+  statusLogs?: Array<{
+    id: string;
+    toStatus: string;
+    note: string;
+    createdAt: string;
+  }>;
 };

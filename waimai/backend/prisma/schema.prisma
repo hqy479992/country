@@ -58,6 +58,8 @@ enum ErrandVehicleType {
 }
 
 enum ErrandOrderStatus {
+  PENDING_QUOTE
+  PENDING_PAYMENT
   PENDING_ASSIGN
   RIDER_ACCEPTED
   PICKED_UP
@@ -181,6 +183,7 @@ model Rider {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   deliveryOrders DeliveryOrder[]
+  errandOrders   ErrandOrder[]
 }
 
 model CartItem {
@@ -290,16 +293,42 @@ model ErrandOrder {
   remark                  String?
   distanceText            String?
   baseFee                 Int
+  goodsBudget             Int?
+  requestId               String?
+  paymentMethod           String?
+  riderId                 String?
+  quotedAt                DateTime?
+  expiresAt               DateTime?
+  acceptedAt              DateTime?
+  pickedUpAt              DateTime?
+  deliveredAt             DateTime?
   totalAmount             Int
-  status                  ErrandOrderStatus  @default(PENDING_ASSIGN)
-  paymentStatus           PaymentStatus      @default(PAID)
+  status                  ErrandOrderStatus  @default(PENDING_QUOTE)
+  paymentStatus           PaymentStatus      @default(PENDING)
   paidAt                  DateTime?
   completedAt             DateTime?
   cancelledAt             DateTime?
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
   user                    User               @relation(fields: [userId], references: [id])
+  rider                   Rider?             @relation(fields: [riderId], references: [id])
+  statusLogs              ErrandStatusLog[]
 
+  @@unique([userId, requestId])
   @@index([userId])
+  @@index([riderId])
   @@index([status])
+}
+
+model ErrandStatusLog {
+  id         String            @id @default(cuid())
+  orderId    String
+  toStatus   ErrandOrderStatus
+  actorType  ActorType
+  actorId    String
+  note       String
+  createdAt  DateTime          @default(now())
+  order      ErrandOrder       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }

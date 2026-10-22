@@ -1,8 +1,10 @@
+import ErrandsPanel from "./ErrandsPanel";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, clearAdminAccess, yuan, yuanToCents } from "./api";
 import type { Order, ProductCategory, Rider, Shop, User } from "./api";
 
-type Tab = "overview" | "users" | "shops" | "products" | "riders" | "orders";
+type Tab =
+  "overview" | "users" | "shops" | "products" | "riders" | "orders" | "errands";
 
 const tabs: Array<{ key: Tab; label: string }> = [
   { key: "overview", label: "概览" },
@@ -10,7 +12,8 @@ const tabs: Array<{ key: Tab; label: string }> = [
   { key: "shops", label: "商家" },
   { key: "products", label: "商品" },
   { key: "riders", label: "骑手" },
-  { key: "orders", label: "订单" },
+  { key: "orders", label: "外卖订单" },
+  { key: "errands", label: "跑腿报价与订单" },
 ];
 
 const productCategoryOptions: Array<{ key: ProductCategory; label: string }> = [
@@ -118,6 +121,7 @@ export function App() {
         <RidersPanel riders={riders} onDone={loadAll} setMessage={setMessage} />
       )}
       {tab === "orders" && <OrdersPanel orders={orders} />}
+      {tab === "errands" && <ErrandsPanel />}
     </main>
   );
 }

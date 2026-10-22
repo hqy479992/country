@@ -1,4 +1,5 @@
 import { ActorType, Prisma } from "@prisma/client";
+import { expireErrands } from "../errands/errand.routes.js";
 import { prisma } from "../../config/db.js";
 
 export async function closeUnpaidOrder(
@@ -71,7 +72,8 @@ export async function expireOrders(userId?: string) {
 export function startExpiryWorker() {
   const run = () => {
     if (expiryRun) return;
-    expiryRun = expireOrders()
+    expiryRun = Promise.all([expireOrders(), expireErrands()])
+      .then(() => {})
       .catch((error) => console.error("订单超时处理失败", error))
       .finally(() => {
         expiryRun = undefined;

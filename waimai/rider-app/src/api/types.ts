@@ -45,3 +45,31 @@ export type DeliveryOrder = {
     phone?: string | null;
   } | null;
 };
+
+export type ErrandTask = {
+  id: string;
+  orderNo: string;
+  serviceType: string;
+  deliveryMode: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+  paymentMethod?: string;
+  itemNote: string;
+  remark?: string;
+  goodsBudget?: number | null;
+  riderId?: string | null;
+  pickupAddressSnapshot: {
+    region: string;
+    detail?: string;
+    name?: string;
+    phone?: string;
+  };
+  deliveryAddressSnapshot: {
+    region: string;
+    detail?: string;
+    name?: string;
+    phone?: string;
+  };
+  statusLogs?: Array<{ id: string; note: string; createdAt: string }>;
+};

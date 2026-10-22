@@ -18,6 +18,9 @@ const leaving = ref(false);
 function orders() {
   uni.reLaunch({ url: "/pages/orders/index" });
 }
+function errands() {
+  uni.reLaunch({ url: "/pages/orders/index?type=errand" });
+}
 function addresses() {
   if (requireLogin("/pages/mine/index"))
     uni.navigateTo({ url: "/pages/address/index" });
@@ -75,6 +78,10 @@ onShow(load);
       ><AppButton class="menu-row" @tap="orders"
         ><view class="menu-icon"><AppIcon name="order" /></view
         ><text>我的订单</text
+        ><AppIcon name="arrow" :size="17" color="#8a967f" /></AppButton
+      ><AppButton class="menu-row" @tap="errands"
+        ><view class="menu-icon"><AppIcon name="bag" /></view
+        ><text>跑腿订单</text
         ><AppIcon name="arrow" :size="17" color="#8a967f" /></AppButton
       ><AppButton class="menu-row" @tap="addresses"
         ><view class="menu-icon"><AppIcon name="pin" /></view
