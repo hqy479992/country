@@ -85,7 +85,7 @@ for (let attempt = 0; attempt < 15; attempt++) {
       { signal: AbortSignal.timeout(2000) },
     );
     const body = await response.json();
-    if (response.ok && body.data?.version === 2) {
+    if (response.ok && body.data?.version === 2 && body.data?.errands === true) {
       ready = true;
       break;
     }

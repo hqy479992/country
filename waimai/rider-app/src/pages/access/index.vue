@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { API_BASE_URL, DEV_RIDER_ID } from "../../config";
-const id = ref(DEV_RIDER_ID);
+import { API_BASE_URL } from "../../config";
+const id = ref("");
 const key = ref("");
 const busy = ref(false);
 const error = ref("");
@@ -28,9 +28,7 @@ function submit() {
           key: key.value.trim(),
         });
         key.value = "";
-        uni.navigateBack({
-          fail: () => uni.reLaunch({ url: "/pages/index/index" }),
-        });
+        uni.reLaunch({ url: "/pages/index/index" });
       } else {
         error.value =
           (response.data as { error?: { message?: string } })?.error?.message ||

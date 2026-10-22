@@ -10,6 +10,10 @@ import DataState from "../../components/DataState.vue";
 import ShopCard from "../../components/ShopCard.vue";
 import { getToken, requireLogin, selectedAddressId } from "../../utils/session";
 import { message } from "../../utils/ui";
+function goErrand() {
+  if (requireLogin("/pages/errand/create"))
+    uni.navigateTo({ url: "/pages/errand/create" });
+}
 const shops = ref<Shop[]>([]);
 const loading = ref(true);
 const error = ref("");
@@ -157,12 +161,14 @@ onShow(() => {
     <view v-else class="stack shop-list"
       ><ShopCard v-for="shop in shops" :key="shop.id" :shop="shop"
     /></view>
-    <view class="errand-card"
+    <AppButton class="errand-card" @tap="goErrand"
       ><view class="errand-icon"><AppIcon name="bike" :size="25" /></view
       ><view
         ><view class="errand-title">取件、送物，找跑腿</view
-        ><view class="small muted">跑腿服务筹备中，敬请期待</view></view
-      ><text class="coming-tag">即将开放</text></view
+        ><view class="small muted"
+          >帮送 · 帮取 · 帮买，发布需求后报价</view
+        ></view
+      ><text class="coming-tag">发布跑腿</text></AppButton
     >
     <view class="home-footnote">一份热饭，送到身边。</view>
     <BottomNav active="home" />
@@ -283,6 +289,8 @@ onShow(() => {
   gap: 11px;
 }
 .errand-card {
+  width: 100%;
+  text-align: left;
   display: flex;
   gap: 10px;
   align-items: center;

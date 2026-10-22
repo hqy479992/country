@@ -1,4 +1,7 @@
 <script setup lang="ts">
+function goErrands() {
+  uni.navigateTo({ url: "/pages/errands/index" });
+}
 import { computed, ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { api } from "../../api";
@@ -15,14 +18,27 @@ const actingOrderId = ref("");
 const isOnline = ref(true);
 const statusMenuOpen = ref(false);
 
-const pickupOrders = computed(() => myOrders.value.filter((order) => order.status === "RIDER_ACCEPTED"));
-const deliverOrders = computed(() => myOrders.value.filter((order) => order.status === "PICKED_UP"));
-const orderCount = computed(() => availableOrders.value.length + pickupOrders.value.length + deliverOrders.value.length);
+const pickupOrders = computed(() =>
+  myOrders.value.filter((order) => order.status === "RIDER_ACCEPTED"),
+);
+const deliverOrders = computed(() =>
+  myOrders.value.filter((order) => order.status === "PICKED_UP"),
+);
+const orderCount = computed(
+  () =>
+    availableOrders.value.length +
+    pickupOrders.value.length +
+    deliverOrders.value.length,
+);
 
 const tabs = computed(() => [
   { key: "NEW" as const, label: "待接单", count: availableOrders.value.length },
   { key: "PICKUP" as const, label: "待取货", count: pickupOrders.value.length },
-  { key: "DELIVER" as const, label: "待送达", count: deliverOrders.value.length }
+  {
+    key: "DELIVER" as const,
+    label: "待送达",
+    count: deliverOrders.value.length,
+  },
 ]);
 
 const currentOrders = computed(() => {
@@ -34,17 +50,27 @@ const currentOrders = computed(() => {
 async function loadOrders() {
   loading.value = true;
   try {
-    const [nextAvailable, nextMine] = await Promise.all([api.getAvailableOrders(), api.getMyOrders()]);
+    const [nextAvailable, nextMine] = await Promise.all([
+      api.getAvailableOrders(),
+      api.getMyOrders(),
+    ]);
     availableOrders.value = nextAvailable;
     myOrders.value = nextMine;
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : "加载失败", icon: "none" });
+    uni.showToast({
+      title: error instanceof Error ? error.message : "加载失败",
+      icon: "none",
+    });
   } finally {
     loading.value = false;
   }
 }
 
-async function runAction(order: DeliveryOrder, action: () => Promise<DeliveryOrder>, successTitle: string) {
+async function runAction(
+  order: DeliveryOrder,
+  action: () => Promise<DeliveryOrder>,
+  successTitle: string,
+) {
   if (actingOrderId.value) return;
   actingOrderId.value = order.id;
   try {
@@ -54,7 +80,10 @@ async function runAction(order: DeliveryOrder, action: () => Promise<DeliveryOrd
     else if (activeTab.value === "PICKUP") activeTab.value = "DELIVER";
     await loadOrders();
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : "操作失败", icon: "none" });
+    uni.showToast({
+      title: error instanceof Error ? error.message : "操作失败",
+      icon: "none",
+    });
   } finally {
     actingOrderId.value = "";
   }
@@ -73,7 +102,9 @@ function deliverOrder(order: DeliveryOrder) {
 }
 
 function goDetail(deliveryOrderId: string) {
-  uni.navigateTo({ url: `/pages/orders/detail?deliveryOrderId=${deliveryOrderId}` });
+  uni.navigateTo({
+    url: `/pages/orders/detail?deliveryOrderId=${deliveryOrderId}`,
+  });
 }
 
 function currentTarget(order: DeliveryOrder) {
@@ -90,12 +121,12 @@ function goNavigation(order: DeliveryOrder, target: "shop" | "user") {
   if (!isActiveTarget(order, target)) {
     uni.showToast({
       title: target === "shop" ? "当前先送达用户" : "当前先去商家取货",
-      icon: "none"
+      icon: "none",
     });
     return;
   }
   uni.navigateTo({
-    url: `/pages/navigation/map?deliveryOrderId=${order.id}&target=${target}`
+    url: `/pages/navigation/map?deliveryOrderId=${order.id}&target=${target}`,
   });
 }
 
@@ -135,7 +166,9 @@ function etaText(order: DeliveryOrder) {
 
 function deadlineText(order: DeliveryOrder) {
   const createdAt = new Date(order.createdAt).getTime();
-  const deadline = new Date((Number.isNaN(createdAt) ? Date.now() : createdAt) + 45 * 60000);
+  const deadline = new Date(
+    (Number.isNaN(createdAt) ? Date.now() : createdAt) + 45 * 60000,
+  );
   const hour = String(deadline.getHours()).padStart(2, "0");
   const minute = String(deadline.getMinutes()).padStart(2, "0");
   return `${hour}:${minute}前送达`;
@@ -165,6 +198,9 @@ onShow(loadOrders);
 
 <template>
   <view class="page rider-page">
+    <view class="errand-entry" style="padding: 12px; background: #fff"
+      ><button @tap="goErrands">跑腿接单 · 帮送 / 帮取 / 帮买</button></view
+    >
     <view class="top-safe">
       <view class="top-row">
         <view class="profile-icon" @tap="goMyOrders">
@@ -172,17 +208,29 @@ onShow(loadOrders);
           <view class="profile-body"></view>
         </view>
         <view class="status-wrap">
-          <view class="status-pill" :class="{ offline: !isOnline }" @tap="toggleStatusMenu">
+          <view
+            class="status-pill"
+            :class="{ offline: !isOnline }"
+            @tap="toggleStatusMenu"
+          >
             <text class="status-dot"></text>
             <text>{{ isOnline ? "上线" : "离线" }}</text>
             <text class="dropdown-icon"></text>
           </view>
           <view v-if="statusMenuOpen" class="status-menu">
-            <view class="status-option" :class="{ active: isOnline }" @tap="setOnlineStatus(true)">
+            <view
+              class="status-option"
+              :class="{ active: isOnline }"
+              @tap="setOnlineStatus(true)"
+            >
               <text class="status-dot"></text>
               <text>上线</text>
             </view>
-            <view class="status-option offline" :class="{ active: !isOnline }" @tap="setOnlineStatus(false)">
+            <view
+              class="status-option offline"
+              :class="{ active: !isOnline }"
+              @tap="setOnlineStatus(false)"
+            >
               <text class="status-dot"></text>
               <text>离线</text>
             </view>
@@ -206,7 +254,13 @@ onShow(loadOrders);
 
     <view v-if="loading" class="empty">加载中...</view>
     <view v-else-if="currentOrders.length === 0" class="empty">
-      {{ activeTab === "NEW" ? "暂无待接单订单" : activeTab === "PICKUP" ? "暂无待取货订单" : "暂无待送达订单" }}
+      {{
+        activeTab === "NEW"
+          ? "暂无待接单订单"
+          : activeTab === "PICKUP"
+            ? "暂无待取货订单"
+            : "暂无待送达订单"
+      }}
     </view>
 
     <view
@@ -234,28 +288,41 @@ onShow(loadOrders);
         <view class="route-main">
           <view
             class="route-point"
-            :class="{ active: isActiveTarget(delivery, 'shop'), muted: !isActiveTarget(delivery, 'shop') }"
+            :class="{
+              active: isActiveTarget(delivery, 'shop'),
+              muted: !isActiveTarget(delivery, 'shop'),
+            }"
             @tap.stop="goNavigation(delivery, 'shop')"
           >
             <view class="point-label">取</view>
             <view class="point-content">
               <view class="shop-name">{{ delivery.order.shop.name }}</view>
-              <view class="shop-address">{{ delivery.order.shop.address }}</view>
+              <view class="shop-address">{{
+                delivery.order.shop.address
+              }}</view>
             </view>
-            <view v-if="isActiveTarget(delivery, 'shop')" class="nav-dot">导航</view>
+            <view v-if="isActiveTarget(delivery, 'shop')" class="nav-dot"
+              >导航</view
+            >
           </view>
           <view
             class="route-point user-point"
-            :class="{ active: isActiveTarget(delivery, 'user'), muted: !isActiveTarget(delivery, 'user') }"
+            :class="{
+              active: isActiveTarget(delivery, 'user'),
+              muted: !isActiveTarget(delivery, 'user'),
+            }"
             @tap.stop="goNavigation(delivery, 'user')"
           >
             <view class="point-label user">送</view>
             <view class="point-content">
               <view class="user-address">
-                {{ delivery.order.addressSnapshot.region }} {{ delivery.order.addressSnapshot.detail }}
+                {{ delivery.order.addressSnapshot.region }}
+                {{ delivery.order.addressSnapshot.detail }}
               </view>
             </view>
-            <view v-if="isActiveTarget(delivery, 'user')" class="nav-dot">导航</view>
+            <view v-if="isActiveTarget(delivery, 'user')" class="nav-dot"
+              >导航</view
+            >
           </view>
         </view>
       </view>
@@ -271,7 +338,9 @@ onShow(loadOrders);
         <text class="tag purple">零售</text>
         <text v-if="activeTab === 'NEW'" class="tag">商家已确认出餐</text>
         <text v-else-if="activeTab === 'PICKUP'" class="tag">预计出货</text>
-        <text v-else class="tag">顾客备注：{{ delivery.order.remark || "无" }}</text>
+        <text v-else class="tag"
+          >顾客备注：{{ delivery.order.remark || "无" }}</text
+        >
       </view>
 
       <view class="goods">
@@ -286,7 +355,16 @@ onShow(loadOrders);
           <text class="tool-icon">聊</text>
           <text>聊天消息</text>
         </view>
-        <view class="tool-btn" @tap="callPhone(activeTab === 'PICKUP' ? delivery.order.shop.phone : delivery.order.addressSnapshot.phone)">
+        <view
+          class="tool-btn"
+          @tap="
+            callPhone(
+              activeTab === 'PICKUP'
+                ? delivery.order.shop.phone
+                : delivery.order.addressSnapshot.phone,
+            )
+          "
+        >
           <text class="tool-icon">电</text>
           <text>联系</text>
         </view>
@@ -295,7 +373,9 @@ onShow(loadOrders);
           :class="{ green: activeTab === 'DELIVER' }"
           @tap="primaryAction(delivery)"
         >
-          {{ actingOrderId === delivery.id ? "处理中..." : actionText(delivery) }}
+          {{
+            actingOrderId === delivery.id ? "处理中..." : actionText(delivery)
+          }}
         </view>
       </view>
     </view>

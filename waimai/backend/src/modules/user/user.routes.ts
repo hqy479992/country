@@ -24,30 +24,6 @@ const addressSchema = z.object({
 
 const updateAddressSchema = addressSchema.partial();
 
-const errandAddressSchema = z.object({
-  name: z.string().min(1),
-  phone: z.string().min(1),
-  region: z.string().min(1),
-  detail: z.string().min(1),
-});
-
-const createErrandOrderSchema = z.object({
-  serviceType: z.enum(["DELIVERY", "BUY", "HELP"]).default("DELIVERY"),
-  deliveryMode: z.enum(["SEND", "PICK", "EXPRESS"]).default("SEND"),
-  vehicleType: z.enum(["BIKE", "CAR"]).default("BIKE"),
-  pickupAddress: errandAddressSchema,
-  deliveryAddress: errandAddressSchema,
-  itemNote: z.string().max(200).optional(),
-  remark: z.string().max(300).optional(),
-});
-
-function generateErrandOrderNo() {
-  const date = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-  return `PT${stamp}${Math.floor(Math.random() * 9000 + 1000)}`;
-}
-
 userRouter.get(
   "/profile",
   asyncHandler(async (req, res) => {
@@ -79,66 +55,6 @@ userRouter.get(
     });
 
     res.json({ data: addresses });
-  }),
-);
-
-userRouter.get(
-  "/errand-orders",
-  asyncHandler(async (req, res) => {
-    const orders = await prisma.errandOrder.findMany({
-      where: { userId: req.actor!.id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json({ data: orders });
-  }),
-);
-
-userRouter.post(
-  "/errand-orders",
-  asyncHandler(async (req, res) => {
-    const input = createErrandOrderSchema.parse(req.body);
-    const baseFee = input.vehicleType === "CAR" ? 1800 : 1000;
-    const serviceFee =
-      input.serviceType === "BUY"
-        ? 300
-        : input.serviceType === "HELP"
-          ? 500
-          : 0;
-    const order = await prisma.errandOrder.create({
-      data: {
-        orderNo: generateErrandOrderNo(),
-        userId: req.actor!.id,
-        serviceType: input.serviceType,
-        deliveryMode: input.deliveryMode,
-        vehicleType: input.vehicleType,
-        pickupAddressSnapshot: input.pickupAddress,
-        deliveryAddressSnapshot: input.deliveryAddress,
-        itemNote: input.itemNote,
-        remark: input.remark,
-        distanceText: "预计1分钟内接单",
-        baseFee,
-        totalAmount: baseFee + serviceFee,
-        paidAt: new Date(),
-      },
-    });
-
-    res.status(201).json({ data: order });
-  }),
-);
-
-userRouter.get(
-  "/errand-orders/:orderId",
-  asyncHandler(async (req, res) => {
-    const order = await prisma.errandOrder.findFirst({
-      where: { id: req.params.orderId, userId: req.actor!.id },
-    });
-
-    if (!order) {
-      throw new AppError(404, "跑腿订单不存在", "ERRAND_ORDER_NOT_FOUND");
-    }
-
-    res.json({ data: order });
   }),
 );
 

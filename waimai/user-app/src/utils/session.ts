@@ -14,6 +14,8 @@ export function saveSession(value: Session) {
   session.value = value;
 }
 export function clearSession() {
+  if (session.value)
+    uni.removeStorageSync(`town-errand-attempt:${session.value.user.id}`);
   uni.removeStorageSync(key);
   uni.removeStorageSync("town-selected-address");
   uni.removeStorageSync("town-order-attempt");
@@ -25,7 +27,7 @@ export function getToken() {
   return session.value?.token || "";
 }
 export function safeUserRoute(value: string) {
-  return /^\/pages\/(index\/index|shop\/detail|cart\/cart|address\/(index|edit)|orders\/(index|detail)|mine\/index|pay\/pay)(\?|$)/.test(
+  return /^\/pages\/(index\/index|shop\/detail|cart\/cart|address\/(index|edit)|orders\/(index|detail)|mine\/index|pay\/pay|errand\/(create|detail))(\?|$)/.test(
     value,
   )
     ? value

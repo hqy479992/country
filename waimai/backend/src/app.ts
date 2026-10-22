@@ -15,6 +15,12 @@ import { authRouter } from "./modules/auth/auth.routes.js";
 import { requireActor } from "./modules/auth/auth.middleware.js";
 import { env } from "./config/env.js";
 
+import {
+  errandRouter,
+  adminErrandRouter,
+  riderErrandRouter,
+} from "./modules/errands/errand.routes.js";
+
 export function createApp() {
   const app = express();
   app.set("trust proxy", "loopback");
@@ -36,6 +42,8 @@ export function createApp() {
       data: {
         version: 2,
         accounts: true,
+        errands: true,
+        errandPricing: "manual",
         orderExpiryMinutes: 15,
         paymentMode: env.mockPaymentEnabled ? "mock" : "unavailable",
       },
@@ -46,6 +54,9 @@ export function createApp() {
     res.json({ data: req.actor }),
   );
   app.use("/api/shops", shopRouter);
+  app.use("/api/user/errand-orders", errandRouter);
+  app.use("/api/admin/errand-orders", adminErrandRouter);
+  app.use("/api/rider/errands", riderErrandRouter);
   app.use("/api/user", userRouter);
   app.use("/api/cart", cartRouter);
   app.use("/api/orders", orderRouter);

@@ -20,8 +20,7 @@ type Options = {
 };
 export function request<T>(path: string, options: Options = {}) {
   const access = uni.getStorageSync("town-rider-access") as
-    | { id: string; key: string }
-    | undefined;
+    { id: string; key: string } | undefined;
   if (!access?.key) {
     login();
     return Promise.reject<T>(new Error("请先登录工作人员账户"));
@@ -39,6 +38,13 @@ export function request<T>(path: string, options: Options = {}) {
         "x-access-key": access.key,
       },
       success: (response) => {
+        const current = uni.getStorageSync("town-rider-access") as
+          { id: string; key: string } | undefined;
+        if (current?.id !== access.id || current?.key !== access.key) {
+          reject(new Error("登录身份已变化，请重新加载"));
+          return;
+        }
+
         const body = (response.data || {}) as {
           data?: T;
           error?: { message?: string };

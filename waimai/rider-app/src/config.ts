@@ -1,3 +1,2 @@
-export const API_BASE_URL = "https://api.xiangzhen.site";
-
-export const DEV_RIDER_ID = "cmqmel4y400051mbhms1bf17v";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://api.xiangzhen.site";
