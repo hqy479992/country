@@ -101,9 +101,23 @@ jobs:
         run: npm run type-check && npm run build:h5
 
       - name: Prepare Pages artifact
+        env:
+          PUBLIC_SITE_MODE: construction
         run: |
           mkdir -p pages-dist/admin pages-dist/user pages-dist/rider
-          cp -R waimai/user-app/dist/build/h5/. pages-dist/
+          case "$PUBLIC_SITE_MODE" in
+            construction)
+              cp .github/pages/construction.html pages-dist/index.html
+              cp .github/pages/construction.html pages-dist/404.html
+              ;;
+            app)
+              cp -R waimai/user-app/dist/build/h5/. pages-dist/
+              ;;
+            *)
+              echo "Unknown public site mode: $PUBLIC_SITE_MODE" >&2
+              exit 1
+              ;;
+          esac
           cp -R waimai/admin-web/dist/. pages-dist/admin/
           cp -R waimai/rider-app/dist/build/h5/. pages-dist/rider/
           cp .github/pages/user-redirect.html pages-dist/user/index.html

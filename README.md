@@ -70,11 +70,15 @@ http://localhost:5173
 
 ## 线上入口
 
-- 用户端：<https://www.xiangzhen.site/>
+- 网站首页：<https://www.xiangzhen.site/>（当前展示“网站建设中”）
 - 运营后台：<https://www.xiangzhen.site/admin/>
 - 骑手端：<https://www.xiangzhen.site/rider/>
 
 原用户端地址 `/user/` 会跳转到首页，并保留查询参数和页面路由。
+
+当前公开首页临时使用 `.github/pages/construction.html`，页脚展示备案号并链接到工信部备案查询网站。用户端资源暂不发布到网站根目录，历史用户端页面链接也会显示建设中页面；运营后台和骑手端继续保留。
+
+需要恢复用户端时，将 `.github/workflows/deploy-pages.yml` 中 `PUBLIC_SITE_MODE` 从 `construction` 改为 `app` 后重新发布。
 
 ## 子项目说明
 
