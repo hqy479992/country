@@ -1,193 +1,238 @@
-import { ActorType, OrderStatus } from "@prisma/client";
+import { ActorType } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/db.js";
+import { env } from "../../config/env.js";
 import { requireActor } from "../auth/auth.middleware.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import { asyncHandler } from "../../shared/middleware/asyncHandler.js";
 import { createOrderNo } from "../../shared/utils/orderNo.js";
+import {
+  assertCartAvailable,
+  lockUser,
+  readCart,
+  summarizeCart,
+} from "../cart/cart.service.js";
+import { closeUnpaidOrder, expireOrders } from "./order.service.js";
 
 export const orderRouter = Router();
-
-const createOrderSchema = z.object({
+const include = {
+  items: true,
+  shop: true,
+  statusLogs: { orderBy: { createdAt: "asc" as const } },
+  deliveryOrder: { include: { rider: true } },
+};
+const createSchema = z.object({
   addressId: z.string().min(1),
-  remark: z.string().max(200).optional()
+  remark: z.string().trim().max(200).optional(),
+  requestId: z.string().min(16).max(80),
+  cartVersion: z.string().length(64),
 });
-
 orderRouter.use(requireActor(ActorType.USER));
-
+orderRouter.use(
+  asyncHandler(async (req, _res, next) => {
+    await expireOrders(req.actor!.id);
+    next();
+  }),
+);
 orderRouter.post(
   "/",
   asyncHandler(async (req, res) => {
-    const input = createOrderSchema.parse(req.body);
+    const input = createSchema.parse(req.body);
     const userId = req.actor!.id;
-
-    const [address, cartItems] = await Promise.all([
-      prisma.userAddress.findFirst({ where: { id: input.addressId, userId } }),
-      prisma.cartItem.findMany({
-        where: { userId },
-        include: { product: true, shop: true }
-      })
-    ]);
-
-    if (!address) {
-      throw new AppError(404, "收货地址不存在", "ADDRESS_NOT_FOUND");
-    }
-    if (cartItems.length === 0) {
-      throw new AppError(400, "购物车为空", "CART_EMPTY");
-    }
-
-    const shopId = cartItems[0].shopId;
-    const mixedShop = cartItems.some((item) => item.shopId !== shopId);
-    if (mixedShop) {
-      throw new AppError(400, "一个订单只能购买一家商家的商品", "ORDER_SHOP_CONFLICT");
-    }
-
-    const shop = cartItems[0].shop;
-    if (shop.status !== "OPEN") {
-      throw new AppError(400, "商家当前未营业", "SHOP_CLOSED");
-    }
-
-    for (const item of cartItems) {
-      if (!item.product.isOnSale || item.product.stock < item.quantity) {
-        throw new AppError(400, `商品库存不足或已下架: ${item.product.name}`, "PRODUCT_NOT_AVAILABLE");
-      }
-    }
-
-    const goodsAmount = cartItems.reduce(
-      (sum, item) => sum + item.product.price * item.quantity,
-      0
-    );
-
-    if (goodsAmount < shop.minOrderAmount) {
-      throw new AppError(400, "未达到起送价", "MIN_ORDER_AMOUNT_NOT_MET");
-    }
-
-    const order = await prisma.$transaction(async (tx) => {
-      const created = await tx.order.create({
-        data: {
-          orderNo: createOrderNo(),
-          userId,
-          shopId,
-          addressSnapshot: {
-            name: address.name,
-            phone: address.phone,
-            region: address.region,
-            detail: address.detail
-          },
-          remark: input.remark,
-          goodsAmount,
-          deliveryFee: shop.deliveryFee,
-          totalAmount: goodsAmount + shop.deliveryFee,
-          items: {
-            create: cartItems.map((item) => ({
-              productId: item.productId,
-              productName: item.product.name,
-              productImageUrl: item.product.imageUrl,
-              unitPrice: item.product.price,
-              quantity: item.quantity,
-              totalPrice: item.product.price * item.quantity
-            }))
-          },
-          statusLogs: {
-            create: {
-              toStatus: OrderStatus.PENDING_PAYMENT,
-              actorType: ActorType.USER,
-              actorId: userId,
-              note: "用户提交订单"
-            }
-          }
-        },
-        include: { items: true }
-      });
-
-      for (const item of cartItems) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } }
+    const order = await prisma.$transaction(
+      async (tx) => {
+        await lockUser(tx, userId);
+        const existing = await tx.order.findUnique({
+          where: { userId_requestId: { userId, requestId: input.requestId } },
+          include,
         });
-      }
-
-      await tx.cartItem.deleteMany({ where: { userId } });
-      return created;
-    });
-
+        if (existing) return existing;
+        const address = await tx.userAddress.findFirst({
+          where: { id: input.addressId, userId },
+        });
+        if (!address)
+          throw new AppError(
+            404,
+            "收货地址不存在，请重新选择",
+            "ADDRESS_NOT_FOUND",
+          );
+        const summary = summarizeCart(await readCart(tx, userId));
+        if (summary.version !== input.cartVersion)
+          throw new AppError(
+            409,
+            "商品或价格已变化，请确认最新费用后再提交",
+            "CART_CHANGED",
+          );
+        assertCartAvailable(summary);
+        const shop = summary.shop!;
+        for (const item of [...summary.items].sort((a, b) =>
+          a.productId.localeCompare(b.productId),
+        )) {
+          const reserved = await tx.product.updateMany({
+            where: {
+              id: item.productId,
+              stock: { gte: item.quantity },
+              isOnSale: true,
+              price: item.product.price,
+            },
+            data: { stock: { decrement: item.quantity } },
+          });
+          if (!reserved.count)
+            throw new AppError(
+              409,
+              `${item.product.name}库存或价格已变化，请重新确认`,
+              "PRODUCT_CHANGED",
+            );
+        }
+        const created = await tx.order.create({
+          data: {
+            orderNo: createOrderNo(),
+            userId,
+            shopId: shop.id,
+            requestId: input.requestId,
+            expiresAt: new Date(Date.now() + 15 * 60_000),
+            addressSnapshot: {
+              name: address.name,
+              phone: address.phone,
+              region: address.region,
+              detail: address.detail,
+            },
+            remark: input.remark,
+            goodsAmount: summary.goodsAmount,
+            deliveryFee: summary.deliveryFee,
+            totalAmount: summary.totalAmount,
+            items: {
+              create: summary.items.map((item) => ({
+                productId: item.productId,
+                productName: item.product.name,
+                productImageUrl: item.product.imageUrl,
+                unitPrice: item.product.price,
+                quantity: item.quantity,
+                totalPrice: item.product.price * item.quantity,
+              })),
+            },
+            statusLogs: {
+              create: {
+                toStatus: "PENDING_PAYMENT",
+                actorType: "USER",
+                actorId: userId,
+                note: "用户提交订单，15分钟内完成支付",
+              },
+            },
+          },
+          include,
+        });
+        await tx.cartItem.deleteMany({ where: { userId } });
+        return created;
+      },
+      { timeout: 10_000 },
+    );
     res.status(201).json({ data: order });
-  })
+  }),
 );
-
+orderRouter.post(
+  "/:orderId/cancel",
+  asyncHandler(async (req, res) => {
+    const userId = req.actor!.id;
+    const updated = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id: req.params.orderId, userId },
+      });
+      if (!order) throw new AppError(404, "订单不存在", "ORDER_NOT_FOUND");
+      if (
+        order.status !== "CANCELLED" &&
+        !(await closeUnpaidOrder(tx, order.id, userId, "用户取消未支付订单"))
+      ) {
+        const current = await tx.order.findUniqueOrThrow({
+          where: { id: order.id },
+          include,
+        });
+        if (current.status === "CANCELLED") return current;
+        throw new AppError(
+          409,
+          "仅待支付订单可以取消，订单状态可能已更新",
+          "ORDER_STATUS_INVALID",
+        );
+      }
+      return tx.order.findUniqueOrThrow({ where: { id: order.id }, include });
+    });
+    res.json({ data: updated });
+  }),
+);
 orderRouter.post(
   "/:orderId/pay/mock",
   asyncHandler(async (req, res) => {
+    if (!env.mockPaymentEnabled)
+      throw new AppError(
+        403,
+        "测试支付未开启，正式支付尚未接入",
+        "PAYMENT_UNAVAILABLE",
+      );
     const userId = req.actor!.id;
-    const order = await prisma.order.findFirst({
-      where: { id: req.params.orderId, userId }
+    const updated = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id: req.params.orderId, userId },
+      });
+      if (!order) throw new AppError(404, "订单不存在", "ORDER_NOT_FOUND");
+      if (order.paymentStatus === "PAID")
+        return tx.order.findUniqueOrThrow({ where: { id: order.id }, include });
+      const result = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          status: "PENDING_PAYMENT",
+          paymentStatus: "PENDING",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        data: { status: "PAID", paymentStatus: "PAID", paidAt: new Date() },
+      });
+      if (!result.count) {
+        const current = await tx.order.findUniqueOrThrow({
+          where: { id: order.id },
+          include,
+        });
+        if (current.paymentStatus === "PAID") return current;
+        throw new AppError(
+          409,
+          "订单已关闭、超时或状态已更新，请查看订单",
+          "ORDER_STATUS_INVALID",
+        );
+      }
+      await tx.orderStatusLog.create({
+        data: {
+          orderId: order.id,
+          fromStatus: "PENDING_PAYMENT",
+          toStatus: "PAID",
+          actorType: "USER",
+          actorId: userId,
+          note: "测试支付成功，未扣款",
+        },
+      });
+      return tx.order.findUniqueOrThrow({ where: { id: order.id }, include });
     });
-
-    if (!order) {
-      throw new AppError(404, "订单不存在", "ORDER_NOT_FOUND");
-    }
-    if (order.status !== "PENDING_PAYMENT") {
-      throw new AppError(400, "当前订单状态不可支付", "ORDER_STATUS_INVALID");
-    }
-
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: "PAID",
-        paymentStatus: "PAID",
-        paidAt: new Date(),
-        statusLogs: {
-          create: {
-            fromStatus: order.status,
-            toStatus: "PAID",
-            actorType: ActorType.USER,
-            actorId: userId,
-            note: "模拟支付成功，后续替换为微信支付回调"
-          }
-        }
-      },
-      include: { items: true, shop: true }
-    });
-
     res.json({ data: updated });
-  })
+  }),
 );
-
 orderRouter.get(
   "/",
-  asyncHandler(async (req, res) => {
-    const orders = await prisma.order.findMany({
-      where: { userId: req.actor!.id },
-      include: {
-        shop: true,
-        items: true,
-        deliveryOrder: { include: { rider: true } }
-      },
-      orderBy: { createdAt: "desc" }
-    });
-
-    res.json({ data: orders });
-  })
+  asyncHandler(async (req, res) =>
+    res.json({
+      data: await prisma.order.findMany({
+        where: { userId: req.actor!.id },
+        include,
+        orderBy: { createdAt: "desc" },
+      }),
+    }),
+  ),
 );
-
 orderRouter.get(
   "/:orderId",
   asyncHandler(async (req, res) => {
     const order = await prisma.order.findFirst({
       where: { id: req.params.orderId, userId: req.actor!.id },
-      include: {
-        shop: true,
-        items: true,
-        statusLogs: { orderBy: { createdAt: "asc" } },
-        deliveryOrder: { include: { rider: true } }
-      }
+      include,
     });
-
-    if (!order) {
-      throw new AppError(404, "订单不存在", "ORDER_NOT_FOUND");
-    }
-
+    if (!order) throw new AppError(404, "订单不存在", "ORDER_NOT_FOUND");
     res.json({ data: order });
-  })
+  }),
 );

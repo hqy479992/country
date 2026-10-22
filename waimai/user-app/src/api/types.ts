@@ -1,5 +1,15 @@
-export type ProductCategory = "FOOD" | "DRINK" | "FRUIT_VEGETABLE" | "CONVENIENCE";
-export type ShopSortMode = "COMPREHENSIVE" | "DISTANCE" | "MIN_ORDER" | "DELIVERY_FEE" | "SPEED" | "SALES";
+export type ProductCategory =
+  | "FOOD"
+  | "DRINK"
+  | "FRUIT_VEGETABLE"
+  | "CONVENIENCE";
+export type ShopSortMode =
+  | "COMPREHENSIVE"
+  | "DISTANCE"
+  | "MIN_ORDER"
+  | "DELIVERY_FEE"
+  | "SPEED"
+  | "SALES";
 
 export type Product = {
   id: string;
@@ -34,6 +44,7 @@ export type Shop = {
 
 export type UserProfile = {
   id: string;
+  account?: string | null;
   phone?: string | null;
   nickname?: string | null;
   createdAt: string;
@@ -79,9 +90,18 @@ export type Order = {
   createdAt: string;
   paidAt?: string | null;
   completedAt?: string | null;
+  expiresAt?: string | null;
+  cancelledAt?: string | null;
+  statusLogs?: Array<{
+    id: string;
+    toStatus: string;
+    note?: string | null;
+    createdAt: string;
+  }>;
   shop?: Shop;
   items: Array<{
     id: string;
+    productId?: string;
     productName: string;
     productImageUrl?: string | null;
     unitPrice: number;
@@ -97,6 +117,23 @@ export type Order = {
       phone?: string | null;
     } | null;
   } | null;
+};
+
+export type CartQuote = {
+  items: CartItem[];
+  shop: Shop | null;
+  goodsAmount: number;
+  deliveryFee: number;
+  totalAmount: number;
+  version: string;
+  issues: string[];
+  canOrder: boolean;
+};
+export type Capabilities = {
+  version: number;
+  accounts: boolean;
+  orderExpiryMinutes: number;
+  paymentMode: "mock" | "unavailable";
 };
 
 export type ErrandOrder = {

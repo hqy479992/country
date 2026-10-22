@@ -1,17 +1,45 @@
 import { request } from "./request";
-import type { CartItem, ErrandOrder, Order, ProductCategory, Shop, ShopSortMode, UserAddress, UserProfile } from "./types";
+import type {
+  Capabilities,
+  CartQuote,
+  CartItem,
+  ErrandOrder,
+  Order,
+  ProductCategory,
+  Shop,
+  ShopSortMode,
+  UserAddress,
+  UserProfile,
+} from "./types";
+import type { Session } from "../utils/session";
 
 export const api = {
-  getShops: (params?: { category?: ProductCategory; keyword?: string; sortBy?: ShopSortMode }) => {
+  getCapabilities: () =>
+    request<Capabilities>("/api/capabilities", { auth: false }),
+  login: (data: { account: string; password: string }) =>
+    request<Session>("/api/auth/login", { method: "POST", data, auth: false }),
+  register: (data: { account: string; password: string; nickname: string }) =>
+    request<Session>("/api/auth/register", {
+      method: "POST",
+      data,
+      auth: false,
+    }),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  getShops: (params?: {
+    category?: ProductCategory;
+    keyword?: string;
+    sortBy?: ShopSortMode;
+  }) => {
     const queryItems = [
       params?.category ? `category=${encodeURIComponent(params.category)}` : "",
       params?.keyword ? `keyword=${encodeURIComponent(params.keyword)}` : "",
-      params?.sortBy ? `sortBy=${encodeURIComponent(params.sortBy)}` : ""
+      params?.sortBy ? `sortBy=${encodeURIComponent(params.sortBy)}` : "",
     ].filter(Boolean);
     const query = queryItems.length > 0 ? `?${queryItems.join("&")}` : "";
-    return request<Shop[]>(`/api/shops${query}`);
+    return request<Shop[]>(`/api/shops${query}`, { auth: false });
   },
-  getShop: (shopId: string) => request<Shop>(`/api/shops/${shopId}`),
+  getShop: (shopId: string) =>
+    request<Shop>(`/api/shops/${shopId}`, { auth: false }),
   getProfile: () => request<UserProfile>("/api/user/profile"),
   getAddresses: () => request<UserAddress[]>("/api/user/addresses"),
   createAddress: (data: {
@@ -29,38 +57,52 @@ export const api = {
       region: string;
       detail: string;
       isDefault: boolean;
-    }>
-  ) => request<UserAddress>(`/api/user/addresses/${addressId}`, { method: "PUT", data }),
+    }>,
+  ) =>
+    request<UserAddress>(`/api/user/addresses/${addressId}`, {
+      method: "PUT",
+      data,
+    }),
   setDefaultAddress: (addressId: string) =>
-    request<UserAddress>(`/api/user/addresses/${addressId}/default`, { method: "POST" }),
+    request<UserAddress>(`/api/user/addresses/${addressId}/default`, {
+      method: "POST",
+    }),
   deleteAddress: (addressId: string) =>
     request<void>(`/api/user/addresses/${addressId}`, { method: "DELETE" }),
   getCart: () => request<CartItem[]>("/api/cart"),
-  addCartItem: (productId: string, quantity = 1) =>
+  getQuote: () => request<CartQuote>("/api/cart/quote"),
+  addCartItem: (productId: string, quantity = 1, replaceCart = false) =>
     request<CartItem>("/api/cart/items", {
       method: "POST",
-      data: { productId, quantity }
+      data: { productId, quantity, replaceCart },
     }),
   updateCartItem: (itemId: string, quantity: number) =>
     request<CartItem>(`/api/cart/items/${itemId}/quantity`, {
       method: "POST",
-      data: { quantity }
+      data: { quantity },
     }),
   removeCartItem: (itemId: string) =>
     request<void>(`/api/cart/items/${itemId}`, {
-      method: "DELETE"
+      method: "DELETE",
     }),
   clearCart: () => request<void>("/api/cart", { method: "DELETE" }),
-  createOrder: (addressId: string, remark?: string) =>
+  createOrder: (
+    addressId: string,
+    remark: string,
+    requestId: string,
+    cartVersion: string,
+  ) =>
     request<Order>("/api/orders", {
       method: "POST",
-      data: { addressId, remark }
+      data: { addressId, remark, requestId, cartVersion },
     }),
   payMock: (orderId: string) =>
     request<Order>(`/api/orders/${orderId}/pay/mock`, {
-      method: "POST"
+      method: "POST",
     }),
   getOrders: () => request<Order[]>("/api/orders"),
+  cancelOrder: (orderId: string) =>
+    request<Order>(`/api/orders/${orderId}/cancel`, { method: "POST" }),
   getOrder: (orderId: string) => request<Order>(`/api/orders/${orderId}`),
   createErrandOrder: (data: {
     serviceType: "DELIVERY" | "BUY" | "HELP";
@@ -80,7 +122,9 @@ export const api = {
     };
     itemNote?: string;
     remark?: string;
-  }) => request<ErrandOrder>("/api/user/errand-orders", { method: "POST", data }),
+  }) =>
+    request<ErrandOrder>("/api/user/errand-orders", { method: "POST", data }),
   getErrandOrders: () => request<ErrandOrder[]>("/api/user/errand-orders"),
-  getErrandOrder: (orderId: string) => request<ErrandOrder>(`/api/user/errand-orders/${orderId}`)
+  getErrandOrder: (orderId: string) =>
+    request<ErrandOrder>(`/api/user/errand-orders/${orderId}`),
 };

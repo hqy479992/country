@@ -1,14 +1,17 @@
 import { env } from "./config/env.js";
 import { prisma } from "./config/db.js";
 import { createApp } from "./app.js";
+import { startExpiryWorker } from "./modules/orders/order.service.js";
 
 const app = createApp();
+const stopExpiryWorker = startExpiryWorker();
 
 const server = app.listen(env.port, () => {
   console.log(`waimai backend listening on http://localhost:${env.port}`);
 });
 
 async function shutdown() {
+  stopExpiryWorker();
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

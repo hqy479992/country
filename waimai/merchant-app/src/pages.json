@@ -23,6 +23,12 @@
       "style": {
         "navigationBarTitleText": "订单详情"
       }
+    },
+    {
+      "path": "pages/access/index",
+      "style": {
+        "navigationBarTitleText": "工作人员登录"
+      }
     }
   ],
   "globalStyle": {

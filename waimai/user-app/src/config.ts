@@ -1,3 +1,2 @@
-export const API_BASE_URL = "https://api.xiangzhen.site";
-
-export const DEV_USER_ID = "cmqmeh94b00001mbhpyjk72w9";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://api.xiangzhen.site";

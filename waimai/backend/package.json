@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:flow": "tsx --test tests/user-flow.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

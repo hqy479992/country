@@ -1,25 +1,12 @@
 # 骑手端 uni-app
 
-第一版骑手端，覆盖 MVP 配送闭环：
-
-- 接单大厅
-- 我的配送单
-- 配送单详情
-- 接单
-- 取货
-- 送达
-
-## 启动
+支持接单、取货与送达。首次进入需输入身份ID和管理员分配的独立访问凭证，失效后重新登录。仅设置开发期ID不能访问接口。
 
 ```bash
-npm install
+npm ci
 npm run dev:h5
+npm run type-check
+npm run build:h5
 ```
 
-默认请求后端：
-
-```text
-http://localhost:3000
-```
-
-开发期骑手 ID 在 [src/config.ts](/Users/huangqiuyu/Documents/外卖/waimai/rider-app/src/config.ts) 中配置。
+默认连接 https://api.xiangzhen.site。管理员在后端执行 `node scripts/configure-access.mjs` 后，分别分配对应角色和ID的凭证；请勿写入前端源码或提交Git。
