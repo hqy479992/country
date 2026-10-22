@@ -6,8 +6,20 @@ import { AppError } from "../../shared/errors/AppError.js";
 
 export const shopRouter = Router();
 
-const productCategories = ["FOOD", "DRINK", "FRUIT_VEGETABLE", "CONVENIENCE"] as const;
-const shopSortModes = ["COMPREHENSIVE", "DISTANCE", "MIN_ORDER", "DELIVERY_FEE", "SPEED", "SALES"] as const;
+const productCategories = [
+  "FOOD",
+  "DRINK",
+  "FRUIT_VEGETABLE",
+  "CONVENIENCE",
+] as const;
+const shopSortModes = [
+  "COMPREHENSIVE",
+  "DISTANCE",
+  "MIN_ORDER",
+  "DELIVERY_FEE",
+  "SPEED",
+  "SALES",
+] as const;
 
 function readQueryValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -17,7 +29,9 @@ function containsKeyword(keyword: string) {
   return { contains: keyword, mode: "insensitive" as const };
 }
 
-function buildShopOrderBy(sortBy: (typeof shopSortModes)[number]): Prisma.ShopOrderByWithRelationInput[] {
+function buildShopOrderBy(
+  sortBy: (typeof shopSortModes)[number],
+): Prisma.ShopOrderByWithRelationInput[] {
   if (sortBy === "MIN_ORDER") {
     return [{ minOrderAmount: "asc" }, { createdAt: "desc" }];
   }
@@ -37,30 +51,35 @@ shopRouter.get(
     const rawCategory = readQueryValue(req.query.category);
     const rawSortBy = readQueryValue(req.query.sortBy);
     const keyword = readQueryValue(req.query.keyword);
-    const category = rawCategory && productCategories.includes(rawCategory as (typeof productCategories)[number])
-      ? (rawCategory as (typeof productCategories)[number])
-      : undefined;
-    const sortBy = rawSortBy && shopSortModes.includes(rawSortBy as (typeof shopSortModes)[number])
-      ? (rawSortBy as (typeof shopSortModes)[number])
-      : "COMPREHENSIVE";
+    const category =
+      rawCategory &&
+      productCategories.includes(
+        rawCategory as (typeof productCategories)[number],
+      )
+        ? (rawCategory as (typeof productCategories)[number])
+        : undefined;
+    const sortBy =
+      rawSortBy &&
+      shopSortModes.includes(rawSortBy as (typeof shopSortModes)[number])
+        ? (rawSortBy as (typeof shopSortModes)[number])
+        : "COMPREHENSIVE";
     const productWhere: Prisma.ProductWhereInput = {
       isOnSale: true,
-      ...(category ? { category } : {})
+      ...(category ? { category } : {}),
     };
     const productKeywordWhere: Prisma.ProductWhereInput = {
       ...productWhere,
       OR: [
         { name: containsKeyword(keyword) },
-        { description: containsKeyword(keyword) }
-      ]
+        { description: containsKeyword(keyword) },
+      ],
     };
     const where: Prisma.ShopWhereInput = {
-      status: "OPEN",
       ...(category
         ? {
             products: {
-              some: productWhere
-            }
+              some: productWhere,
+            },
           }
         : {}),
       ...(keyword
@@ -72,17 +91,17 @@ shopRouter.get(
               { businessHours: containsKeyword(keyword) },
               {
                 products: {
-                  some: productKeywordWhere
-                }
-              }
-            ]
+                  some: productKeywordWhere,
+                },
+              },
+            ],
           }
-        : {})
+        : {}),
     };
 
     const shops = await prisma.shop.findMany({
       where,
-      orderBy: buildShopOrderBy(sortBy),
+      orderBy: [{ status: "asc" }, ...buildShopOrderBy(sortBy)],
       select: {
         id: true,
         merchantId: true,
@@ -99,16 +118,16 @@ shopRouter.get(
         products: {
           where: productWhere,
           orderBy: { createdAt: "desc" },
-          take: 4
+          take: 4,
         },
         _count: {
-          select: { orders: true }
-        }
-      }
+          select: { orders: true },
+        },
+      },
     });
 
     res.json({ data: shops });
-  })
+  }),
 );
 
 shopRouter.get(
@@ -119,9 +138,9 @@ shopRouter.get(
       include: {
         products: {
           where: { isOnSale: true },
-          orderBy: { createdAt: "desc" }
-        }
-      }
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     if (!shop) {
@@ -129,5 +148,5 @@ shopRouter.get(
     }
 
     res.json({ data: shop });
-  })
+  }),
 );

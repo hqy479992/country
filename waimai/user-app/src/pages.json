@@ -3,55 +3,64 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "本地外卖"
+        "navigationBarTitleText": "本地外卖",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/shop/detail",
       "style": {
-        "navigationBarTitleText": "商家详情"
+        "navigationBarTitleText": "商家详情",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/search/index",
       "style": {
-        "navigationBarTitleText": "搜索"
+        "navigationBarTitleText": "搜索",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/cart/cart",
       "style": {
-        "navigationBarTitleText": "购物车"
+        "navigationBarTitleText": "购物车",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/address/index",
       "style": {
-        "navigationBarTitleText": "地址管理"
+        "navigationBarTitleText": "地址管理",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/address/edit",
       "style": {
-        "navigationBarTitleText": "编辑地址"
+        "navigationBarTitleText": "编辑地址",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/pay/pay",
       "style": {
-        "navigationBarTitleText": "支付订单"
+        "navigationBarTitleText": "支付订单",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/orders/index",
       "style": {
-        "navigationBarTitleText": "我的订单"
+        "navigationBarTitleText": "我的订单",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/orders/detail",
       "style": {
-        "navigationBarTitleText": "订单详情"
+        "navigationBarTitleText": "订单详情",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -60,12 +69,19 @@
         "navigationBarTitleText": "我的",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/auth/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "本地外卖",
     "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f6f7f9"
+    "backgroundColor": "#f5f7f2"
   }
 }

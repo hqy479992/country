@@ -1,4 +1,15 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.xiangzhen.site";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "https://api.xiangzhen.site";
+export const accessStorageKey = "town-admin-access";
+export function clearAdminAccess() {
+  sessionStorage.removeItem(accessStorageKey);
+  window.dispatchEvent(new Event("staff-auth-expired"));
+}
+export async function verifyAdminAccess(key: string) {
+  return request<{ type: string; id: string }>("/api/staff/session", {
+    accessKey: key,
+  });
+}
 
 type ApiResponse<T> = {
   data: T;
@@ -7,6 +18,7 @@ type ApiResponse<T> = {
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  accessKey?: string;
 };
 
 async function request<T>(path: string, options: RequestOptions = {}) {
@@ -15,15 +27,18 @@ async function request<T>(path: string, options: RequestOptions = {}) {
     headers: {
       "Content-Type": "application/json",
       "x-actor-type": "ADMIN",
-      "x-actor-id": "admin-dev"
+      "x-actor-id": "admin-dev",
+      "x-access-key":
+        options.accessKey ?? sessionStorage.getItem(accessStorageKey) ?? "",
     },
-    body: options.body ? JSON.stringify(options.body) : undefined
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   const text = await response.text();
   const json = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    if (response.status === 401) clearAdminAccess();
     const message = json?.error?.message ?? "请求失败";
     throw new Error(message);
   }
@@ -70,7 +85,11 @@ export type Shop = {
   _count?: { orders: number };
 };
 
-export type ProductCategory = "FOOD" | "DRINK" | "FRUIT_VEGETABLE" | "CONVENIENCE";
+export type ProductCategory =
+  | "FOOD"
+  | "DRINK"
+  | "FRUIT_VEGETABLE"
+  | "CONVENIENCE";
 
 export type Product = {
   id: string;
@@ -143,7 +162,8 @@ export const api = {
     phone: string;
     deliveryFee: number;
     minOrderAmount: number;
-  }) => request<Shop>("/api/admin/shops", { method: "POST", body: compact(body) }),
+  }) =>
+    request<Shop>("/api/admin/shops", { method: "POST", body: compact(body) }),
   updateShop: (
     shopId: string,
     body: Partial<{
@@ -155,8 +175,12 @@ export const api = {
       deliveryFee: number;
       minOrderAmount: number;
       status: "OPEN" | "CLOSED";
-    }>
-  ) => request<Shop>(`/api/admin/shops/${shopId}`, { method: "PUT", body: compact(body) }),
+    }>,
+  ) =>
+    request<Shop>(`/api/admin/shops/${shopId}`, {
+      method: "PUT",
+      body: compact(body),
+    }),
   createProduct: (
     shopId: string,
     body: {
@@ -165,12 +189,19 @@ export const api = {
       category?: ProductCategory;
       price: number;
       stock: number;
-    }
-  ) => request<Product>(`/api/admin/shops/${shopId}/products`, { method: "POST", body: compact(body) }),
+    },
+  ) =>
+    request<Product>(`/api/admin/shops/${shopId}/products`, {
+      method: "POST",
+      body: compact(body),
+    }),
   getRiders: () => request<Rider[]>("/api/admin/riders"),
   createRider: (body: { name: string; phone?: string }) =>
-    request<Rider>("/api/admin/riders", { method: "POST", body: compact(body) }),
-  getOrders: () => request<Order[]>("/api/admin/orders")
+    request<Rider>("/api/admin/riders", {
+      method: "POST",
+      body: compact(body),
+    }),
+  getOrders: () => request<Order[]>("/api/admin/orders"),
 };
 
 export function yuan(cents: number) {
@@ -184,6 +215,8 @@ export function yuanToCents(value: FormDataEntryValue | null) {
 
 function compact<T extends Record<string, unknown>>(body: T) {
   return Object.fromEntries(
-    Object.entries(body).filter(([, value]) => value !== "" && value !== undefined && value !== null)
+    Object.entries(body).filter(
+      ([, value]) => value !== "" && value !== undefined && value !== null,
+    ),
   );
 }

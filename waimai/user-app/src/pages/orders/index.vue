@@ -1,291 +1,252 @@
 <script setup lang="ts">
+import AppButton from "../../components/AppButton.vue";
 import { computed, ref } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onShow, onHide, onUnload } from "@dcloudio/uni-app";
 import { api } from "../../api";
-import type { ErrandOrder, Order } from "../../api/types";
-import { orderStage, statusClass, statusText, yuan } from "../../utils/format";
-
+import type { Order } from "../../api/types";
+import { getToken, requireLogin } from "../../utils/session";
+import { message } from "../../utils/ui";
+import { statusText, statusClass, yuan, dateText } from "../../utils/format";
+import PageHead from "../../components/PageHead.vue";
+import BottomNav from "../../components/BottomNav.vue";
+import DataState from "../../components/DataState.vue";
+import AppIcon from "../../components/AppIcon.vue";
 const orders = ref<Order[]>([]);
-const errandOrders = ref<ErrandOrder[]>([]);
-const activeService = ref<"TAKEOUT" | "ERRAND">("TAKEOUT");
-const activeStatus = ref("ALL");
 const loading = ref(false);
-
-const tabs = [
-  { key: "ALL", label: "全部" },
-  { key: "PENDING_PAYMENT", label: "待支付" },
-  { key: "PROCESSING", label: "处理中" },
-  { key: "DELIVERY", label: "配送中" },
-  { key: "COMPLETED", label: "已完成" }
+const error = ref("");
+const active = ref("all");
+const loggedIn = ref(false);
+let timer: ReturnType<typeof setInterval> | undefined;
+let visible = false;
+const filters = [
+  { key: "all", label: "全部" },
+  { key: "pay", label: "待支付" },
+  { key: "active", label: "进行中" },
+  { key: "done", label: "已完成" },
+  { key: "cancelled", label: "已取消" },
 ];
-
-const filteredOrders = computed(() => {
-  if (activeStatus.value === "ALL") return orders.value;
-  if (activeStatus.value === "PROCESSING") {
-    return orders.value.filter((order) =>
-      ["PAID", "MERCHANT_ACCEPTED", "READY_FOR_PICKUP"].includes(order.status)
-    );
+const filtered = computed(() =>
+  orders.value.filter(
+    (order) =>
+      active.value === "all" ||
+      (active.value === "pay" && order.status === "PENDING_PAYMENT") ||
+      (active.value === "active" &&
+        [
+          "PAID",
+          "MERCHANT_ACCEPTED",
+          "READY_FOR_PICKUP",
+          "RIDER_ACCEPTED",
+          "PICKED_UP",
+        ].includes(order.status)) ||
+      (active.value === "done" &&
+        ["DELIVERED", "COMPLETED"].includes(order.status)) ||
+      (active.value === "cancelled" && order.status === "CANCELLED"),
+  ),
+);
+async function load(silent = false) {
+  loggedIn.value = !!getToken();
+  if (!loggedIn.value) {
+    orders.value = [];
+    return;
   }
-  if (activeStatus.value === "DELIVERY") {
-    return orders.value.filter((order) => ["RIDER_ACCEPTED", "PICKED_UP"].includes(order.status));
-  }
-  if (activeStatus.value === "COMPLETED") {
-    return orders.value.filter((order) => ["DELIVERED", "COMPLETED"].includes(order.status));
-  }
-  return orders.value.filter((order) => order.status === activeStatus.value);
-});
-
-async function loadOrders() {
+  if (loading.value) return;
   loading.value = true;
+  if (!silent) error.value = "";
   try {
-    const [nextOrders, nextErrandOrders] = await Promise.all([api.getOrders(), api.getErrandOrders()]);
-    orders.value = nextOrders;
-    errandOrders.value = nextErrandOrders;
-  } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : "加载失败", icon: "none" });
+    const result = await api.getOrders();
+    if (visible) {
+      orders.value = result;
+      error.value = "";
+    }
+  } catch (e) {
+    if (visible) error.value = message(e);
+    loggedIn.value = !!getToken();
   } finally {
     loading.value = false;
   }
 }
-
-function goDetail(orderId: string) {
-  uni.navigateTo({ url: `/pages/orders/detail?orderId=${orderId}` });
+function open(order: Order) {
+  uni.navigateTo({ url: `/pages/orders/detail?orderId=${order.id}` });
 }
-
-function goPay(orderId: string) {
-  uni.navigateTo({ url: `/pages/pay/pay?orderId=${orderId}` });
+function pay(order: Order) {
+  uni.navigateTo({ url: `/pages/pay/pay?orderId=${order.id}` });
 }
-
-function errandStatusText(status: string) {
-  const map: Record<string, string> = {
-    PENDING_ASSIGN: "待接单",
-    RIDER_ACCEPTED: "骑手已接单",
-    PICKED_UP: "配送中",
-    DELIVERED: "已送达",
-    COMPLETED: "已完成",
-    CANCELLED: "已取消"
-  };
-  return map[status] ?? status;
+function stop() {
+  visible = false;
+  if (timer) clearInterval(timer);
+  timer = undefined;
 }
-
-function errandModeText(mode?: string) {
-  const map: Record<string, string> = {
-    SEND: "帮送",
-    PICK: "帮取",
-    EXPRESS: "1对1急送"
-  };
-  return map[mode || ""] ?? "跑腿";
-}
-
-onShow(loadOrders);
+onShow(() => {
+  visible = true;
+  void load();
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => {
+    if (
+      orders.value.some(
+        (order) =>
+          !["COMPLETED", "DELIVERED", "CANCELLED"].includes(order.status),
+      )
+    )
+      void load(true);
+  }, 15000);
+});
+onHide(stop);
+onUnload(stop);
 </script>
-
 <template>
-  <view class="page">
-    <view class="topbar">
-      <view>
-        <view class="title">我的订单</view>
-        <view class="muted">查看下单后的每一步状态</view>
-      </view>
-      <view class="refresh" @tap="loadOrders">{{ loading ? "刷新中" : "刷新" }}</view>
-    </view>
-
-    <view class="service-switch">
-      <view class="service-item" :class="{ active: activeService === 'TAKEOUT' }" @tap="activeService = 'TAKEOUT'">外卖</view>
-      <view class="service-item" :class="{ active: activeService === 'ERRAND' }" @tap="activeService = 'ERRAND'">跑腿</view>
-    </view>
-
-    <scroll-view v-if="activeService === 'TAKEOUT'" class="tabs" scroll-x>
-      <view class="tab-row">
-        <view
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="tab"
-          :class="{ active: activeStatus === tab.key }"
-          @tap="activeStatus = tab.key"
-        >
-          {{ tab.label }}
-        </view>
-      </view>
-    </scroll-view>
-
-    <view v-if="activeService === 'TAKEOUT' && filteredOrders.length === 0" class="empty">暂无外卖订单</view>
-    <view v-for="order in activeService === 'TAKEOUT' ? filteredOrders : []" :key="order.id" class="order-card" @tap="goDetail(order.id)">
-      <view class="order-head">
-        <text class="shop">{{ order.shop?.name || "订单" }}</text>
-        <text class="status" :class="statusClass(order.status)">{{ statusText(order.status) }}</text>
-      </view>
-      <view class="muted">订单号 {{ order.orderNo }}</view>
-      <view class="stage">当前阶段：{{ orderStage(order.status) }}</view>
-      <view class="items">
-        <text v-for="item in order.items" :key="item.id">{{ item.productName }} x {{ item.quantity }}</text>
-      </view>
-      <view v-if="order.deliveryOrder" class="muted">配送状态：{{ statusText(order.deliveryOrder.status) }}</view>
-      <view class="order-bottom">
-        <text>{{ new Date(order.createdAt).toLocaleString() }}</text>
-        <text class="price">{{ yuan(order.totalAmount) }}</text>
-      </view>
-      <view v-if="order.status === 'PENDING_PAYMENT'" class="pay-btn" @tap.stop="goPay(order.id)">去支付</view>
-    </view>
-
-    <view v-if="activeService === 'ERRAND' && errandOrders.length === 0" class="empty">暂无跑腿订单</view>
-    <view v-for="order in activeService === 'ERRAND' ? errandOrders : []" :key="order.id" class="order-card">
-      <view class="order-head">
-        <text class="shop">跑腿 {{ order.serviceType === "BUY" ? "帮我买" : order.serviceType === "HELP" ? "帮个忙" : errandModeText(order.deliveryMode) }}</text>
-        <text class="status">{{ errandStatusText(order.status) }}</text>
-      </view>
-      <view class="muted">订单号 {{ order.orderNo }}</view>
-      <view class="stage">当前阶段：{{ errandStatusText(order.status) }}</view>
-      <view class="items">
-        <text>取：{{ order.pickupAddressSnapshot.region }} {{ order.pickupAddressSnapshot.detail }}</text>
-        <text>送：{{ order.deliveryAddressSnapshot.region }} {{ order.deliveryAddressSnapshot.detail }}</text>
-        <text v-if="order.itemNote">物品：{{ order.itemNote }}</text>
-      </view>
-      <view class="order-bottom">
-        <text>{{ new Date(order.createdAt).toLocaleString() }}</text>
-        <text class="price">{{ yuan(order.totalAmount) }}</text>
-      </view>
-    </view>
-  </view>
+  <view class="page with-nav"
+    ><PageHead title="我的订单" :back="false"
+      ><AppButton class="text-btn small" :disabled="loading" @tap="load()"
+        >刷新</AppButton
+      ></PageHead
+    ><DataState
+      v-if="!loggedIn"
+      title="登录后查看订单"
+      description="在这里查看备餐、配送和历史订单"
+      action="去登录"
+      @action="requireLogin('/pages/orders/index')" /><template v-else
+      ><view class="chips order-filters"
+        ><AppButton
+          v-for="filter in filters"
+          :key="filter.key"
+          class="chip"
+          :class="{ active: active === filter.key }"
+          @tap="active = filter.key"
+          >{{ filter.label }}</AppButton
+        ></view
+      ><DataState
+        v-if="loading && !orders.length"
+        kind="loading"
+        title="正在加载订单"
+      /><DataState
+        v-else-if="error && !orders.length"
+        kind="error"
+        title="订单加载失败"
+        :description="error"
+        action="重新加载"
+        @action="load()"
+      /><template v-else
+        ><view v-if="error" class="notice warning refresh-notice"
+          >刷新失败，当前显示上次结果。{{ error }}</view
+        ><DataState
+          v-if="!filtered.length"
+          title="这里还没有订单"
+          :description="
+            active === 'all' ? '去附近商家挑点喜欢的吧' : '换个订单分类看看'
+          "
+        /><view v-else class="stack"
+          ><view
+            v-for="order in filtered"
+            :key="order.id"
+            class="card order-card"
+            ><AppButton class="order-main" @tap="open(order)"
+              ><view class="row order-header"
+                ><view class="order-shop"
+                  ><AppIcon name="store" :size="18" /><text>{{
+                    order.shop?.name || "商家"
+                  }}</text
+                  ><AppIcon name="arrow" :size="14" color="#829177" /></view
+                ><text
+                  class="order-status"
+                  :class="statusClass(order.status)"
+                  >{{ statusText(order.status) }}</text
+                ></view
+              ><view class="order-products"
+                ><text>{{
+                  order.items.map((item) => item.productName).join("、")
+                }}</text></view
+              ><view class="row small"
+                ><text class="muted">{{ dateText(order.createdAt) }}</text
+                ><text class="order-price">{{
+                  yuan(order.totalAmount)
+                }}</text></view
+              ></AppButton
+            ><view class="order-actions"
+              ><text class="small muted"
+                >共
+                {{ order.items.reduce((sum, item) => sum + item.quantity, 0) }}
+                件商品</text
+              ><AppButton
+                v-if="order.status === 'PENDING_PAYMENT'"
+                class="pay-button"
+                @tap="pay(order)"
+                >继续支付</AppButton
+              ><AppButton v-else class="outline-btn" @tap="open(order)"
+                >查看详情</AppButton
+              ></view
+            ></view
+          ></view
+        ></template
+      ></template
+    ><BottomNav active="orders"
+  /></view>
 </template>
-
 <style scoped>
-.topbar {
+.order-filters {
+  gap: 6px;
+  margin: 4px 0 20px;
+}
+.order-filters .chip {
+  font-size: 12px;
+  padding-left: 11px;
+  padding-right: 11px;
+}
+.order-main {
+  width: 100%;
+  text-align: left;
+}
+.order-header {
+  padding-top: 0;
+}
+.order-shop {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-weight: 600;
+}
+.order-shop text {
+  overflow-wrap: anywhere;
+}
+.order-status {
+  font-size: 12px;
+  color: #245d3f;
+  flex-shrink: 0;
+}
+.order-status.paying {
+  color: #a56524;
+}
+.order-status.cancelled {
+  color: #8a9481;
+}
+.order-products {
+  font-size: 14px;
+  margin: 11px 0;
+  color: #53654d;
+}
+.order-price {
+  font-size: 18px;
+  font-weight: 600;
+  color: #263c2e;
+}
+.order-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16rpx;
-  margin-bottom: 20rpx;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #edf1e8;
 }
-
-.title {
-  font-size: 40rpx;
-  font-weight: 900;
-}
-
-.refresh {
-  color: #165dff;
-  font-weight: 900;
-}
-
-.service-switch {
-  display: flex;
-  gap: 14rpx;
-  margin-bottom: 18rpx;
-}
-
-.service-item {
-  flex: 1;
-  height: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999rpx;
-  background: #fff;
-  color: #667085;
-  font-weight: 900;
-}
-
-.service-item.active {
-  background: #1f2329;
+.pay-button {
+  background: #245d3f;
   color: #fff;
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 10px 15px;
+  font-size: 13px;
 }
-
-.tabs {
-  margin-bottom: 20rpx;
-  white-space: nowrap;
-}
-
-.tab-row {
-  display: flex;
-  gap: 12rpx;
-}
-
-.tab {
-  padding: 14rpx 24rpx;
-  border-radius: 999rpx;
-  background: #fff;
-  color: #475467;
-  font-weight: 800;
-}
-
-.tab.active {
-  background: #1f2329;
-  color: #fff;
-}
-
-.order-card {
-  padding: 24rpx;
-  margin-bottom: 18rpx;
-  border-radius: 16rpx;
-  background: #fff;
-}
-
-.order-head,
-.order-bottom {
-  display: flex;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.shop {
-  font-size: 30rpx;
-  font-weight: 800;
-}
-
-.status {
-  color: #165dff;
-  font-weight: 700;
-}
-
-.status.done {
-  color: #039855;
-}
-
-.status.cancelled {
-  color: #d92d20;
-}
-
-.status.paying {
-  color: #ad6800;
-}
-
-.stage {
-  margin-top: 14rpx;
-  padding: 14rpx 16rpx;
-  border-radius: 12rpx;
-  background: #f6f7f9;
-  color: #475467;
-  font-weight: 700;
-}
-
-.items {
-  display: grid;
-  gap: 8rpx;
-  margin: 18rpx 0;
-}
-
-.order-bottom {
-  margin-top: 14rpx;
-  color: #667085;
-  font-size: 24rpx;
-}
-
-.pay-btn {
-  margin-top: 18rpx;
-  height: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12rpx;
-  background: #1677ff;
-  color: #fff;
-  font-weight: 900;
-}
-
-.empty {
-  padding: 80rpx 0;
-  text-align: center;
-  color: #667085;
+.refresh-notice {
+  margin-bottom: 12px;
 }
 </style>

@@ -1,356 +1,170 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import AppButton from "../../components/AppButton.vue";
+import { ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { api } from "../../api";
-import type { Shop, UserProfile } from "../../api/types";
-
-const profile = ref<UserProfile | null>(null);
-const favoriteShops = ref<Shop[]>([]);
-const showAllFavorites = ref(false);
-const loading = ref(false);
-
-const displayName = computed(() => {
-  const user = profile.value;
-  if (!user) return "本地用户";
-  return user.nickname || user.phone || `用户${user.id.slice(-6)}`;
-});
-const avatarText = computed(() => displayName.value.slice(0, 1).toUpperCase());
-const visibleFavorites = computed(() => (showAllFavorites.value ? favoriteShops.value : favoriteShops.value.slice(0, 3)));
-
-async function loadMine() {
-  loading.value = true;
-  try {
-    const [nextProfile, shops] = await Promise.all([api.getProfile(), api.getShops()]);
-    profile.value = nextProfile;
-    favoriteShops.value = shops;
-  } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : "加载失败", icon: "none" });
-  } finally {
-    loading.value = false;
-  }
+import {
+  session,
+  getToken,
+  requireLogin,
+  clearSession,
+  saveSession,
+} from "../../utils/session";
+import { confirm, toast } from "../../utils/ui";
+import PageHead from "../../components/PageHead.vue";
+import AppIcon from "../../components/AppIcon.vue";
+import BottomNav from "../../components/BottomNav.vue";
+const leaving = ref(false);
+function orders() {
+  uni.reLaunch({ url: "/pages/orders/index" });
 }
-
-function toggleFavorites() {
-  if (favoriteShops.value.length <= 3) {
-    uni.showToast({ title: "已展示全部收藏", icon: "none" });
+function addresses() {
+  if (requireLogin("/pages/mine/index"))
+    uni.navigateTo({ url: "/pages/address/index" });
+}
+async function logout() {
+  if (
+    leaving.value ||
+    !(await confirm(
+      "退出登录",
+      "退出后可以继续浏览商家，查看订单时需重新登录。",
+    ))
+  )
     return;
+  leaving.value = true;
+  try {
+    await api.logout();
+    clearSession();
+  } catch (e) {
+    if (!getToken()) clearSession();
+    else toast(e);
+  } finally {
+    leaving.value = false;
   }
-  showAllFavorites.value = !showAllFavorites.value;
 }
-
-function goShop(shopId: string) {
-  uni.navigateTo({ url: `/pages/shop/detail?shopId=${shopId}` });
+async function load() {
+  if (!getToken()) return;
+  const token = session.value!.token;
+  try {
+    const user = await api.getProfile();
+    if (session.value?.token === token) saveSession({ ...session.value, user });
+  } catch {
+    /* An expired session is cleared centrally. */
+  }
 }
-
-function goHome() {
-  uni.reLaunch({ url: "/pages/index/index" });
-}
-
-function goOrders() {
-  uni.navigateTo({ url: "/pages/orders/index" });
-}
-
-function goAddress() {
-  uni.navigateTo({ url: "/pages/address/index" });
-}
-
-function comingSoon(title: string) {
-  uni.showToast({ title: `${title}后续接入`, icon: "none" });
-}
-
-onShow(loadMine);
+onShow(load);
 </script>
-
 <template>
-  <view class="mine-page">
-    <view class="profile-head">
-      <view class="avatar">{{ avatarText }}</view>
-      <view class="profile-info">
-        <view class="name">{{ displayName }}</view>
-        <view class="muted">欢迎回来</view>
-      </view>
-    </view>
-
-    <view class="section-card">
-      <view class="section-head">
-        <view class="section-title">我的收藏</view>
-        <view class="more-link" @tap="toggleFavorites">
-          {{ showAllFavorites ? "收起" : "查看更多" }}
-          <text class="chevron"></text>
-        </view>
-      </view>
-
-      <view v-if="loading" class="empty-small">加载中...</view>
-      <view v-else-if="favoriteShops.length === 0" class="empty-small">暂无收藏</view>
-      <view v-else class="favorite-list" :class="{ expanded: showAllFavorites }">
-        <view v-for="shop in visibleFavorites" :key="shop.id" class="favorite-item" @tap="goShop(shop.id)">
-          <image v-if="shop.coverUrl || shop.logoUrl" class="favorite-img" :src="shop.coverUrl || shop.logoUrl || ''" mode="aspectFill" />
-          <view v-else class="favorite-img placeholder">{{ shop.name.slice(0, 1) }}</view>
-          <view class="favorite-name">{{ shop.name }}</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="section-card">
-      <view class="section-title">我的功能</view>
-      <view class="feature-grid">
-        <view class="feature-item" @tap="goAddress">
-          <view class="feature-icon pin"></view>
-          <view>我的地址</view>
-        </view>
-        <view class="feature-item" @tap="comingSoon('我的足迹')">
-          <view class="feature-icon footprint">●</view>
-          <view>我的足迹</view>
-        </view>
-        <view class="feature-item" @tap="comingSoon('我的评价')">
-          <view class="feature-icon comment">···</view>
-          <view>我的评价</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="bottom-nav">
-      <view class="nav-item" @tap="goHome">
-        <view class="nav-icon yellow">外</view>
-        <view>外卖</view>
-      </view>
-      <view class="nav-item" @tap="goOrders">
-        <view class="nav-icon line">单</view>
-        <view>订单</view>
-      </view>
-      <view class="nav-item active">
-        <view class="nav-icon yellow">我</view>
-        <view>我的</view>
-      </view>
-    </view>
-  </view>
+  <view class="page with-nav"
+    ><PageHead title="我的" :back="false" /><view class="profile"
+      ><view class="avatar"><AppIcon name="user" :size="32" /></view
+      ><view class="profile-copy"
+        ><view class="profile-name">{{
+          session?.user.nickname || "欢迎来到乡镇外卖"
+        }}</view
+        ><view v-if="session" class="small muted"
+          >账号 {{ session.user.account || "我的账户" }}</view
+        ><AppButton
+          v-else
+          class="login-entry"
+          @tap="requireLogin('/pages/mine/index')"
+          >登录 / 注册<AppIcon
+            name="arrow"
+            :size="14" /></AppButton></view></view
+    ><view class="card account-menu"
+      ><AppButton class="menu-row" @tap="orders"
+        ><view class="menu-icon"><AppIcon name="order" /></view
+        ><text>我的订单</text
+        ><AppIcon name="arrow" :size="17" color="#8a967f" /></AppButton
+      ><AppButton class="menu-row" @tap="addresses"
+        ><view class="menu-icon"><AppIcon name="pin" /></view
+        ><text>收货地址</text
+        ><AppIcon name="arrow" :size="17" color="#8a967f" /></AppButton
+      ><AppButton
+        v-if="session"
+        class="menu-row"
+        :disabled="leaving"
+        @tap="logout"
+        ><view class="menu-icon"><AppIcon name="exit" /></view
+        ><text>{{ leaving ? "正在退出…" : "退出登录" }}</text
+        ><AppIcon name="arrow" :size="17" color="#8a967f" /></AppButton></view
+    ><view class="account-note"
+      ><AppIcon name="bag" :size="21" color="#96a387" /><view
+        >把附近的好味道，送到你身边。</view
+      ></view
+    ><BottomNav active="mine"
+  /></view>
 </template>
-
 <style scoped>
-.mine-page {
-  min-height: 100vh;
-  padding: 52rpx 24rpx 150rpx;
-  background: #f6f7f9;
-  color: #1f2329;
-}
-
-.profile-head {
+.profile {
   display: flex;
   align-items: center;
-  gap: 22rpx;
-  padding: 20rpx 4rpx 32rpx;
+  gap: 15px;
+  padding: 25px 0 32px;
 }
-
 .avatar {
-  width: 96rpx;
-  height: 96rpx;
+  width: 74px;
+  height: 74px;
+  background: #e5efd8;
+  border-radius: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ffe57a, #ffb020);
-  color: #101828;
-  font-size: 42rpx;
-  font-weight: 900;
+  flex-shrink: 0;
 }
-
-.profile-info {
+.profile-copy {
   min-width: 0;
 }
-
-.name {
-  max-width: 480rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 42rpx;
-  font-weight: 900;
+.profile-name {
+  font-size: 21px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
 }
-
-.muted {
-  margin-top: 8rpx;
-  color: #667085;
-  font-size: 24rpx;
-}
-
-.section-card {
-  margin-bottom: 24rpx;
-  padding: 28rpx;
-  border-radius: 24rpx;
-  background: #fff;
-}
-
-.section-head {
+.login-entry {
+  color: #245d3f;
+  font-size: 13px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18rpx;
+  gap: 4px;
+  min-height: 32px;
 }
-
-.section-title {
-  color: #1f2329;
-  font-size: 32rpx;
-  font-weight: 900;
+.account-menu {
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
-
-.more-link {
+.menu-row {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  color: #667085;
-  font-size: 26rpx;
-  font-weight: 800;
-}
-
-.chevron {
-  width: 14rpx;
-  height: 14rpx;
-  border-right: 4rpx solid currentColor;
-  border-bottom: 4rpx solid currentColor;
-  transform: rotate(-45deg);
-}
-
-.favorite-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16rpx;
-  margin-top: 26rpx;
-}
-
-.favorite-list.expanded {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.favorite-item {
-  min-width: 0;
-}
-
-.favorite-img {
+  gap: 12px;
   width: 100%;
-  height: 132rpx;
+  min-height: 68px;
+  border-bottom: 1px solid #edf0e8;
+  text-align: left;
+}
+.menu-row:last-child {
+  border: 0;
+}
+.menu-row > text {
+  flex: 1;
+}
+.menu-icon {
+  width: 35px;
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14rpx;
-  background: #f2f4f7;
-  color: #ff7a00;
-  font-size: 42rpx;
-  font-weight: 900;
+  background: #f0f5e9;
+  border-radius: 10px;
 }
-
-.placeholder {
-  background: linear-gradient(135deg, #ffcf66, #ff7a59);
-  color: #fff;
-}
-
-.favorite-name {
-  margin-top: 10rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #344054;
-  font-size: 24rpx;
-  font-weight: 800;
-}
-
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24rpx;
-  margin-top: 32rpx;
-}
-
-.feature-item {
-  display: grid;
-  justify-items: center;
-  gap: 14rpx;
-  color: #344054;
-  font-size: 28rpx;
-  font-weight: 800;
-}
-
-.feature-icon {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffbe20;
-  font-size: 34rpx;
-  font-weight: 900;
-}
-
-.feature-icon.pin {
-  position: relative;
-  width: 44rpx;
-  height: 44rpx;
-  border: 13rpx solid #ffbe20;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-}
-
-.feature-icon.footprint {
-  border-radius: 50%;
-  background: #fff6d6;
-}
-
-.feature-icon.comment {
-  border-radius: 14rpx;
-  background: #ffbe20;
-  color: #fff;
-}
-
-.empty-small {
-  padding: 42rpx 0 12rpx;
-  color: #98a2b3;
+.account-note {
   text-align: center;
-}
-
-.bottom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  align-items: center;
-  padding: 14rpx 18rpx 28rpx;
-  border-top: 1rpx solid #eef0f3;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.nav-item {
-  display: grid;
-  justify-items: center;
-  gap: 6rpx;
-  color: #667085;
-  font-size: 22rpx;
-  font-weight: 800;
-}
-
-.nav-item.active {
-  color: #101828;
-}
-
-.nav-icon {
-  min-width: 54rpx;
-  height: 54rpx;
+  font-size: 12px;
+  color: #96a387;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-size: 20rpx;
-  font-weight: 900;
-}
-
-.nav-icon.yellow {
-  background: #ffdf24;
-  color: #101828;
-}
-
-.nav-icon.line {
-  border: 3rpx solid #667085;
-  color: #475467;
+  gap: 12px;
+  margin-top: 56px;
 }
 </style>

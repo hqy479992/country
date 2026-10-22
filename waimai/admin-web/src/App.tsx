@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { api, yuan, yuanToCents } from "./api";
+import { api, clearAdminAccess, yuan, yuanToCents } from "./api";
 import type { Order, ProductCategory, Rider, Shop, User } from "./api";
 
 type Tab = "overview" | "users" | "shops" | "products" | "riders" | "orders";
@@ -10,18 +10,21 @@ const tabs: Array<{ key: Tab; label: string }> = [
   { key: "shops", label: "商家" },
   { key: "products", label: "商品" },
   { key: "riders", label: "骑手" },
-  { key: "orders", label: "订单" }
+  { key: "orders", label: "订单" },
 ];
 
 const productCategoryOptions: Array<{ key: ProductCategory; label: string }> = [
   { key: "FOOD", label: "美食" },
   { key: "DRINK", label: "甜品饮品" },
   { key: "FRUIT_VEGETABLE", label: "蔬菜水果" },
-  { key: "CONVENIENCE", label: "超市便利" }
+  { key: "CONVENIENCE", label: "超市便利" },
 ];
 
 function productCategoryLabel(category: ProductCategory) {
-  return productCategoryOptions.find((item) => item.key === category)?.label || "美食";
+  return (
+    productCategoryOptions.find((item) => item.key === category)?.label ||
+    "美食"
+  );
 }
 
 export function App() {
@@ -40,7 +43,7 @@ export function App() {
         api.getUsers(),
         api.getShops(),
         api.getRiders(),
-        api.getOrders()
+        api.getOrders(),
       ]);
       setUsers(nextUsers);
       setShops(nextShops);
@@ -62,11 +65,14 @@ export function App() {
     () => [
       { label: "用户", value: users.length },
       { label: "商家", value: shops.length },
-      { label: "商品", value: shops.reduce((sum, shop) => sum + shop.products.length, 0) },
+      {
+        label: "商品",
+        value: shops.reduce((sum, shop) => sum + shop.products.length, 0),
+      },
       { label: "骑手", value: riders.length },
-      { label: "订单", value: orders.length }
+      { label: "订单", value: orders.length },
     ],
-    [orders.length, riders.length, shops, users.length]
+    [orders.length, riders.length, shops, users.length],
   );
 
   return (
@@ -78,6 +84,9 @@ export function App() {
         </div>
         <button className="secondary" onClick={loadAll} disabled={loading}>
           {loading ? "刷新中..." : "刷新数据"}
+        </button>
+        <button className="secondary" onClick={clearAdminAccess}>
+          退出登录
         </button>
       </header>
 
@@ -96,18 +105,30 @@ export function App() {
       <div className="notice">{message}</div>
 
       {tab === "overview" && <Overview stats={stats} orders={orders} />}
-      {tab === "users" && <UsersPanel users={users} onDone={loadAll} setMessage={setMessage} />}
-      {tab === "shops" && <ShopsPanel shops={shops} onDone={loadAll} setMessage={setMessage} />}
+      {tab === "users" && (
+        <UsersPanel users={users} onDone={loadAll} setMessage={setMessage} />
+      )}
+      {tab === "shops" && (
+        <ShopsPanel shops={shops} onDone={loadAll} setMessage={setMessage} />
+      )}
       {tab === "products" && (
         <ProductsPanel shops={shops} onDone={loadAll} setMessage={setMessage} />
       )}
-      {tab === "riders" && <RidersPanel riders={riders} onDone={loadAll} setMessage={setMessage} />}
+      {tab === "riders" && (
+        <RidersPanel riders={riders} onDone={loadAll} setMessage={setMessage} />
+      )}
       {tab === "orders" && <OrdersPanel orders={orders} />}
     </main>
   );
 }
 
-function Overview({ stats, orders }: { stats: Array<{ label: string; value: number }>; orders: Order[] }) {
+function Overview({
+  stats,
+  orders,
+}: {
+  stats: Array<{ label: string; value: number }>;
+  orders: Order[];
+}) {
   return (
     <section className="stack">
       <div className="stats">
@@ -129,7 +150,7 @@ function Overview({ stats, orders }: { stats: Array<{ label: string; value: numb
 function UsersPanel({
   users,
   onDone,
-  setMessage
+  setMessage,
 }: {
   users: User[];
   onDone: () => Promise<void>;
@@ -142,7 +163,7 @@ function UsersPanel({
     await run(setMessage, async () => {
       await api.createUser({
         nickname: String(form.get("nickname") || ""),
-        phone: String(form.get("phone") || "")
+        phone: String(form.get("phone") || ""),
       });
       formElement.reset();
       await onDone();
@@ -161,7 +182,7 @@ function UsersPanel({
         phone: String(form.get("phone")),
         region: String(form.get("region")),
         detail: String(form.get("detail")),
-        isDefault: form.get("isDefault") === "on"
+        isDefault: form.get("isDefault") === "on",
       });
       formElement.reset();
       await onDone();
@@ -239,7 +260,7 @@ function UsersPanel({
 function ShopsPanel({
   shops,
   onDone,
-  setMessage
+  setMessage,
 }: {
   shops: Shop[];
   onDone: () => Promise<void>;
@@ -259,7 +280,7 @@ function ShopsPanel({
         address: String(form.get("address")),
         phone: String(form.get("phone")),
         deliveryFee: yuanToCents(form.get("deliveryFee")),
-        minOrderAmount: yuanToCents(form.get("minOrderAmount"))
+        minOrderAmount: yuanToCents(form.get("minOrderAmount")),
       });
       formElement.reset();
       await onDone();
@@ -281,7 +302,7 @@ function ShopsPanel({
         coverUrl: String(form.get("coverUrl") || ""),
         deliveryFee: yuanToCents(form.get("deliveryFee")),
         minOrderAmount: yuanToCents(form.get("minOrderAmount")),
-        status: String(form.get("status")) as "OPEN" | "CLOSED"
+        status: String(form.get("status")) as "OPEN" | "CLOSED",
       });
       setEditingShopId("");
       formElement.reset();
@@ -302,8 +323,22 @@ function ShopsPanel({
           <input name="shopName" placeholder="店铺名称" required />
           <input name="address" placeholder="店铺地址" required />
           <input name="phone" placeholder="店铺电话" required />
-          <input name="deliveryFee" type="number" min="0" step="0.01" placeholder="配送费，单位元" required />
-          <input name="minOrderAmount" type="number" min="0" step="0.01" placeholder="起送价，单位元" required />
+          <input
+            name="deliveryFee"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="配送费，单位元"
+            required
+          />
+          <input
+            name="minOrderAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="起送价，单位元"
+            required
+          />
           <button type="submit">创建商家</button>
         </form>
       </div>
@@ -323,18 +358,43 @@ function ShopsPanel({
               </option>
             ))}
           </select>
-          <input name="name" placeholder="店铺名称" defaultValue={editingShop?.name ?? ""} required />
-          <input name="address" placeholder="店铺地址" defaultValue={editingShop?.address ?? ""} required />
-          <input name="phone" placeholder="店铺电话" defaultValue={editingShop?.phone ?? ""} required />
-          <input name="logoUrl" placeholder="Logo URL" defaultValue={editingShop?.logoUrl ?? ""} />
-          <input name="coverUrl" placeholder="封面 URL" defaultValue={editingShop?.coverUrl ?? ""} />
+          <input
+            name="name"
+            placeholder="店铺名称"
+            defaultValue={editingShop?.name ?? ""}
+            required
+          />
+          <input
+            name="address"
+            placeholder="店铺地址"
+            defaultValue={editingShop?.address ?? ""}
+            required
+          />
+          <input
+            name="phone"
+            placeholder="店铺电话"
+            defaultValue={editingShop?.phone ?? ""}
+            required
+          />
+          <input
+            name="logoUrl"
+            placeholder="Logo URL"
+            defaultValue={editingShop?.logoUrl ?? ""}
+          />
+          <input
+            name="coverUrl"
+            placeholder="封面 URL"
+            defaultValue={editingShop?.coverUrl ?? ""}
+          />
           <input
             name="deliveryFee"
             type="number"
             min="0"
             step="0.01"
             placeholder="配送费，单位元"
-            defaultValue={editingShop ? (editingShop.deliveryFee / 100).toFixed(2) : ""}
+            defaultValue={
+              editingShop ? (editingShop.deliveryFee / 100).toFixed(2) : ""
+            }
             required
           />
           <input
@@ -343,7 +403,9 @@ function ShopsPanel({
             min="0"
             step="0.01"
             placeholder="起送价，单位元"
-            defaultValue={editingShop ? (editingShop.minOrderAmount / 100).toFixed(2) : ""}
+            defaultValue={
+              editingShop ? (editingShop.minOrderAmount / 100).toFixed(2) : ""
+            }
             required
           />
           <select name="status" defaultValue={editingShop?.status ?? "OPEN"}>
@@ -392,7 +454,7 @@ function ShopsPanel({
 function ProductsPanel({
   shops,
   onDone,
-  setMessage
+  setMessage,
 }: {
   shops: Shop[];
   onDone: () => Promise<void>;
@@ -408,7 +470,7 @@ function ProductsPanel({
         description: String(form.get("description") || ""),
         category: String(form.get("category") || "FOOD") as ProductCategory,
         price: yuanToCents(form.get("price")),
-        stock: Number(form.get("stock"))
+        stock: Number(form.get("stock")),
       });
       formElement.reset();
       await onDone();
@@ -438,8 +500,22 @@ function ProductsPanel({
               </option>
             ))}
           </select>
-          <input name="price" type="number" min="0.01" step="0.01" placeholder="价格，单位元" required />
-          <input name="stock" type="number" min="0" placeholder="库存" defaultValue="9999" required />
+          <input
+            name="price"
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder="价格，单位元"
+            required
+          />
+          <input
+            name="stock"
+            type="number"
+            min="0"
+            placeholder="库存"
+            defaultValue="9999"
+            required
+          />
           <button type="submit">创建商品</button>
         </form>
       </div>
@@ -471,7 +547,7 @@ function ProductsPanel({
                   <td>{product.stock}</td>
                   <td>{product.isOnSale ? "上架" : "下架"}</td>
                 </tr>
-              ))
+              )),
             )}
           </tbody>
         </table>
@@ -483,7 +559,7 @@ function ProductsPanel({
 function RidersPanel({
   riders,
   onDone,
-  setMessage
+  setMessage,
 }: {
   riders: Rider[];
   onDone: () => Promise<void>;
@@ -496,7 +572,7 @@ function RidersPanel({
     await run(setMessage, async () => {
       await api.createRider({
         name: String(form.get("name")),
-        phone: String(form.get("phone") || "")
+        phone: String(form.get("phone") || ""),
       });
       formElement.reset();
       await onDone();
@@ -596,7 +672,10 @@ function OrderTable({ orders }: { orders: Order[] }) {
   );
 }
 
-async function run(setMessage: (message: string) => void, action: () => Promise<string>) {
+async function run(
+  setMessage: (message: string) => void,
+  action: () => Promise<string>,
+) {
   try {
     setMessage("提交中...");
     const message = await action();

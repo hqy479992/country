@@ -6,14 +6,14 @@ export function errorHandler(
   error: unknown,
   _req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ) {
   if (error instanceof AppError) {
     return res.status(error.statusCode).json({
       error: {
         code: error.code,
-        message: error.message
-      }
+        message: error.message,
+      },
     });
   }
 
@@ -21,9 +21,9 @@ export function errorHandler(
     return res.status(400).json({
       error: {
         code: "VALIDATION_ERROR",
-        message: "请求参数不正确",
-        details: error.flatten()
-      }
+        message: error.issues[0]?.message || "请求参数不正确",
+        details: error.flatten(),
+      },
     });
   }
 
@@ -31,7 +31,7 @@ export function errorHandler(
   return res.status(500).json({
     error: {
       code: "INTERNAL_SERVER_ERROR",
-      message: "服务器内部错误"
-    }
+      message: "服务器内部错误",
+    },
   });
 }
